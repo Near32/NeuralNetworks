@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/kevin/Development/NN/MAT/Mat.h
+iostream
+-
+limits
+-
+cstdlib
+-
+math.h
+-
+time.h
+-
+assert.h
+-
+opencv2/opencv.hpp
+-
+
+/home/kevin/Development/NN/NN.h
+iostream
+-
+vector
+-
+MAT/Mat.h
+/home/kevin/Development/NN/MAT/Mat.h
+
+/home/kevin/Development/NN/testNN.cpp
+NN.h
+/home/kevin/Development/NN/NN.h
+
