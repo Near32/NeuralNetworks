@@ -2,56 +2,63 @@
 
 int main(int argc, char* argv[] )
 {
+	float eps = numeric_limits<float>::epsilon();
 	Topology topology;
-	unsigned int nbrneurons = 5000;
-	topology.NperNLayer.push_back(1000);
-	topology.NperNLayer.push_back(nbrneurons);
+	unsigned int nbrneurons = 20;
+	unsigned int nbrlayer = 5;
+	unsigned int nbrinput = 40;
+	unsigned int nbroutput = 10;
+	topology.push_back(nbrinput,NTSIGMOID);	//input layer
 	
-	topology.NperNLayer.push_back(nbrneurons);
-	topology.NperNLayer.push_back(nbrneurons);
+	for(int i=nbrlayer;i--;)	topology.push_back(nbrneurons, NTSIGMOID);
 	
-	topology.NperNLayer.push_back(nbrneurons);
-	topology.NperNLayer.push_back(nbrneurons);
-	
-	topology.NperNLayer.push_back(nbrneurons);
-	topology.NperNLayer.push_back(nbrneurons);
-	
-	topology.NperNLayer.push_back(nbrneurons);
-	topology.NperNLayer.push_back(nbrneurons);
-	
-	topology.NperNLayer.push_back(500);
+	topology.push_back(nbroutput, NTSOFTMAX);	//logistic layer
+	//topology.push_back(nbroutput, NTC);	//output layer
 	
 	clock_t time = clock();
 	NN<float> nn(topology);
 	std::cout << "The RESSOURCES ALLOCATION took : " << (float)(clock()-time)/(float)(CLOCKS_PER_SEC) << " seconds." << std::endl;
 	
 	
-	int nbrVals = 10;
-	Mat<float> inputVals((float)0,1000,nbrVals);
-	Mat<float> outputVals((float)0,500,nbrVals);
-	Mat<float> targetVals((float)0,500,nbrVals);
+	int nbrVals = 20;
+	Mat<float> inputVals((float)eps,nbrinput,nbrVals);
+	Mat<float> outputVals((float)eps,nbroutput,nbrVals);
+	Mat<float> targetVals((float)eps,nbroutput,nbrVals);
 	
-	for(int i=1000;i--;)
+	for(int i=nbrinput;i--;)
 	{
 		inputVals.set( i, i+1,i+1);
 	}
 	
-	for(int i=500;i--;)
+	for(int i=nbroutput;i--;)
 	{
 		targetVals.set( i, i+1,i+1);
 	}
 	
 	
-	time = clock();
+	for(int k=0;k<=1000;k++)
+	{
+		float error = 0.0f;
+		time = clock();
+		
+		for(int i=1;i<=nbrVals;i++)
+		{
+			
 	
-	outputVals = nn.feedForward(Cola(inputVals,1));
+			outputVals = nn.feedForward(Cola(inputVals,i));
 	
-	std::cout << "The FEEDFORWARD PROPAGATION took : " << (float)(clock()-time)/(float)(CLOCKS_PER_SEC) << " seconds." << std::endl;
+			//std::cout << "The FEEDFORWARD PROPAGATION took : " << (float)(clock()-time)/(float)(CLOCKS_PER_SEC) << " seconds." << std::endl;
 	
-	nn.backProp(Cola(targetVals,1));
-	//nn.getOutputs(Cola(outputVals,1));
+			//nn.backProp(Cola(targetVals,i));
+			nn.backPropCrossEntropy(Cola(targetVals,i));
 	
-	transpose(outputVals).afficher();
-	
+			//transpose(outputVals).afficher();
+		
+			error += norme2(Cola(targetVals,i) - extract(outputVals,1,1, nbroutput,1) )/nbrVals;
+		}
+		
+		std::cout << " ERROR = " << error << " ; " << (float)(clock()-time)/(CLOCKS_PER_SEC) << " seconds." << std::endl;
+	}
+		
 	return 0;
 }
