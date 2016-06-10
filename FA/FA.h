@@ -5,6 +5,7 @@
 #include "../MAT/Mat.h"
 #include "../ONSCNewton/ONSCNewton.h"
 #include "../NN.h"
+#include <mutex>
 
 template<typename T>
 Mat<T> wrapperGREEDY( const Mat<T>& A, void* obj);
@@ -13,6 +14,7 @@ template<typename T>
 class FA
 {
 	public :
+	std::mutex mutexFA;
 	
 	FA(const float& lr_, const float& eps_) : lr(lr_), eps(eps_)
 	{
@@ -28,6 +30,13 @@ class FA
 	virtual void initialize()=0;
 	
 	virtual void update(const Mat<T>& S, const Mat<T>& A, const Mat<T>& S1, const Mat<T>& R ) = 0;
+	virtual void updateBATCH(const Mat<T>& S, const Mat<T>& A, const Mat<T>& S1, const Mat<T>& R, int batchSize = 10 ) = 0;
+	
+	virtual	void update(const Mat<T>& input, const Mat<T>& target) = 0;
+	virtual	void updateBATCH(const Mat<T>& input, const Mat<T>& target, int batchSize =10 ) = 0;
+	
+	virtual	void updateDelta(const Mat<T>& input, const Mat<T>& delta) = 0;
+	virtual	void updateDeltaBATCH(const Mat<T>& input, const Mat<T>& delta, int batchSize =10 ) = 0;
 	
 	virtual Mat<T> estimate(const Mat<T>& S, const Mat<T>& A) =0;
 	
@@ -35,6 +44,28 @@ class FA
 	virtual Mat<T> greedy(const Mat<T>& S1) = 0;
 	
 	virtual Mat<T> getQvalue( const Mat<T>& S, const Mat<T>& A) = 0;
+	virtual NN<T>* getNetPointer()	const
+	{
+		return (NN<T>*)NULL;
+	}
+	
+	
+	float getLR()	const
+	{
+		return lr;
+	}
+	
+	float getEPS()	const
+	{
+		return eps;
+	}
+	
+	virtual bool updateToward(FA<T>* fa_, const T& momentum) = 0;
+	
+	
+	virtual void setInputNormalization(const Mat<T>& mean, const Mat<T>& std)=0;
+	
+	virtual inline Mat<float> normalize( const Mat<float>& in)=0;
 	
 	protected :
 	
@@ -50,17 +81,38 @@ class QFANN : public FA<T>
 {
 	public :
 	
-	QFANN(const float& lr_, const float& eps_, const float& gamma_, const int& dimActionSpace_, const Topology& topo) : FA<T>(lr_,eps_), Qsa(Mat<T>((T)0,1,1)), S1(Mat<T>((T)0,1,1)), A1(Mat<T>((T)0,1,1)), dimActionSpace(dimActionSpace_), gamma(gamma_), greedyAlreadyComputed(false)
+						  
+	int dimStateSpace;
+	int dimActionSpace;
+	std::string filepathRSNN;
+	
+	bool normalization;
+	
+	//------------------------------------
+	//------------------------------------
+	//------------------------------------
+	
+	//load from a topology architecture :
+	QFANN(const float& lr_, const float& eps_, const float& gamma_, const int& dimActionSpace_, const Topology& topo, const std::string& filepathRSNN_ = std::string("./NN.txt")) : FA<T>(lr_,eps_), Qsa(Mat<T>((T)0,1,1)), S1(Mat<T>((T)0,1,1)), A1(Mat<T>((T)0,1,1)), dimActionSpace(dimActionSpace_), gamma(gamma_), greedyAlreadyComputed(false), filepathRSNN(filepathRSNN_), normalization(false)
 	{
-		this->net = new NN<T>(topo);
+		this->net = new NN<T>(topo,this->lr, this->filepathRSNN);
 		srand(time(NULL));
 		
 		this->dimStateSpace = topo.getNeuronNumOnLayer(0)-this->dimActionSpace;
 	}
 	
+	//load from a file :
+	QFANN(const float& lr_, const float& eps_, const float& gamma_, const int& dimActionSpace_, const std::string& filepath, const std::string& filepathRSNN_ = std::string("./NN.txt") ) : FA<T>(lr_,eps_), Qsa(Mat<T>((T)0,1,1)), S1(Mat<T>((T)0,1,1)), A1(Mat<T>((T)0,1,1)), dimActionSpace(dimActionSpace_), gamma(gamma_), greedyAlreadyComputed(false), filepathRSNN(filepathRSNN_), normalization(false)
+	{
+		this->net = new NN<T>(filepath, this->lr, filepathRSNN);
+		srand(time(NULL));
+		
+		this->dimStateSpace = this->net->topology.getNeuronNumOnLayer(0)-this->dimActionSpace;
+	}
+	
 	~QFANN()
 	{
-		this->net->save(std::string("CARTPOLENN") );
+		//this->net->save(std::string("CARTPOLENN") );
 		delete this->net;
 	}
 	
@@ -73,8 +125,10 @@ class QFANN : public FA<T>
 	
 	virtual Mat<T> estimate(const Mat<T>& S, const Mat<T>& A)	override
 	{
-		this->Qsa = this->net->feedForward( operatorC(S,A) ) ;
+		this->mutexFA.lock();
+		this->Qsa = this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) ) ;
 		
+		this->mutexFA.unlock();
 		return this->Qsa;
 	}
 	
@@ -93,7 +147,8 @@ class QFANN : public FA<T>
 		//std::cout << "QTARGET = " << Qtarget.get(1,1) << std::endl;
 		
 		//this->net->learning = true;
-		this->net->feedForward( operatorC(S,A) );
+		this->net->learning = false;
+		this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
 		this->net->backProp( Qtarget );
 		this->net->learning = false;
 		
@@ -101,13 +156,77 @@ class QFANN : public FA<T>
 		this->greedyAlreadyComputed = true;
 	}
 	
-	void update(const Mat<T>& input, const Mat<T>& target )
+	
+	virtual void updateBATCH(const Mat<T>& S, const Mat<T>& A, const Mat<T>& S1, const Mat<T>& R, int batchSize = 10 )	override
 	{
 		/*--------------------------------------------
 		architecture is : Q(s,a) = NN( (s,a) )
-		----------------------------------------------*/		
-		this->net->feedForward( input );
+		----------------------------------------------*/
+		this->A1 = A;
+		this->estimate(S,A);
+		//Mat<float> Qtarget( ((T)(1.0f-this->lr))*this->Qsa + ((T)this->lr)*(R+gamma * this->estimate(S1, this->greedy(S1) ) ) );
+		//Mat<float> Qtarget( (R+gamma * this->estimate(S1, this->greedy(S1) ) - this->Qsa) );
+		Mat<float> Qtarget( (R+gamma * this->estimate(S1, this->greedy(S1) ) ) );
+
+		//std::cout << "QTARGET = " << Qtarget.get(1,1) << std::endl;
+		
+		//this->net->learning = true;
+		this->net->learning = false;
+		this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
+		this->net->backPropBATCH( Qtarget, batchSize );
+		this->net->learning = false;
+		
+		
+		this->greedyAlreadyComputed = true;
+	}
+	
+	virtual void update(const Mat<T>& input, const Mat<T>& target )	override
+	{
+		/*--------------------------------------------
+		architecture is : Q(s,a) = NN( (s,a) )
+		----------------------------------------------*/	
+		this->net->learning = false;	
+		this->net->feedForward( (normalization? normalize(input) : input ) );
 		this->net->backProp( target );
+		
+		this->greedyAlreadyComputed = false;
+	}
+	
+	virtual void updateBATCH(const Mat<T>& input, const Mat<T>& target, int batchSize )	override
+	{
+		/*--------------------------------------------
+		architecture is : Q(s,a) = NN( (s,a) )
+		----------------------------------------------*/	
+		this->net->learning = false;	
+		this->net->feedForward( (normalization? normalize(input) : input ) );
+		this->net->backPropBATCH( target, batchSize );
+		
+		this->greedyAlreadyComputed = false;
+	}
+	
+	virtual void updateDelta(const Mat<T>& input, const Mat<T>& delta )	override
+	{
+		/*--------------------------------------------
+		architecture is : Q(s,a) = NN( (s,a) )
+		----------------------------------------------*/	
+		
+		//TODO : learning ? true false ?	
+		this->net->learning = false;
+		this->net->feedForward( (normalization? normalize(input) : input ) );
+		this->net->backPropDelta( delta );
+		
+		this->greedyAlreadyComputed = false;
+		
+	}
+	
+	virtual void updateDeltaBATCH(const Mat<T>& input, const Mat<T>& delta, int batchSize )	override
+	{
+		/*--------------------------------------------
+		architecture is : Q(s,a) = NN( (s,a) )
+		----------------------------------------------*/	
+		this->net->learning = false;	
+		this->net->feedForward( (normalization? normalize(input) : input ) );
+		this->net->backPropDeltaBATCH( delta, batchSize );
 		
 		this->greedyAlreadyComputed = false;
 	}
@@ -163,8 +282,8 @@ class QFANN : public FA<T>
 	virtual Mat<T> greedy(const Mat<T>& S1)	override
 	{
 		this->S1 = S1;
-		int nbrit = 10;
-		float alpha = 1e-4f;
+		int nbrit = 20;
+		float alpha = 1e-2f;
 		float momentum = 0.9f;
 		//TODO : evaluate the number of it needed.
 		
@@ -180,8 +299,19 @@ class QFANN : public FA<T>
 		
 		while(nbrit--)
 		{
-			this->net->feedForward(operatorC(S1,A));
-			grad = (1.0f-momentum)*(this->net->getGradientWRTinput() * IdAction) + momentum*grad;
+			this->net->feedForward( (normalization? normalize(operatorC(S1,A)) : operatorC(S1,A) ) );
+			//grad = (1.0f-momentum)*(this->net->getGradientWRTinput() * IdAction) + momentum*grad;
+			Mat<float> gradinput(this->net->getGradientWRTinput());
+			
+			if( ! isnanM(gradinput) )
+			{
+				grad = (gradinput * IdAction) + momentum*grad;
+			}
+			
+			/*
+			std::cout << nbrit << " : NORME GRAD GREEDY = " << norme2(gradinput) << std::endl;
+			gradinput.afficher();
+			*/
 			
 			A += alpha*transpose(grad);
 		}
@@ -194,10 +324,10 @@ class QFANN : public FA<T>
 	
 	virtual Mat<T> getQvalue( const Mat<T>& S, const Mat<T>& A) override
 	{
-		return this->net->feedForward(operatorC(S,A));
+		return this->net->feedForward( (normalization? normalize(operatorC(S,A)) : operatorC(S,A) ) );
 	}
 	
-	NN<T>* getNetPointer()	const
+	virtual NN<T>* getNetPointer()	const	override
 	{
 		return this->net;
 	}
@@ -205,6 +335,35 @@ class QFANN : public FA<T>
 	Mat<T> getS1()	const
 	{
 		return S1;
+	}
+	
+	void save(const std::string& filepath)	const
+	{
+		net->save(filepath);
+	}
+	
+	void load(const std::string& filepath)	const
+	{
+		net->load(filepath);
+	}
+	
+	
+	virtual bool updateToward(FA<T>* fa_, const T& momentum) override
+	{
+		//fa_ must be a QFANN
+		return net->updateToward( ((QFANN<T>*)fa_)->getNetPointer(), momentum);
+	}
+	
+	virtual void setInputNormalization(const Mat<T>& mean, const Mat<T>& std)	override
+	{
+		this->inputMean = mean;
+		this->invinputStd = inverseM(std);
+		this->normalization = true;
+	}
+	
+	virtual inline Mat<float> normalize( const Mat<float>& in)	override
+	{
+		return (in-this->inputMean)%this->invinputStd;
 	}
 	
 	private :
@@ -215,11 +374,10 @@ class QFANN : public FA<T>
 	Mat<T> S1;			//current next state.
 	Mat<T> A1;			/*at the beginning : current action used in the estimation of the current state action value.
 						  at the end : argmax Q(S1,A1)*/
-						  
-	int dimStateSpace;
-	int dimActionSpace;
-	
 	bool greedyAlreadyComputed;
+	
+	Mat<float> inputMean;
+	Mat<float> invinputStd;
 	
 };
 

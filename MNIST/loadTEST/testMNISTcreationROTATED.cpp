@@ -192,15 +192,23 @@ int main(int argc, char* argv[])
 			}
 			
 			//-------------------
+			
+			if( iteration % 1000 == 0)
+			{
+				std::cout << " TEST : " << countSuccess << " / " << 1000 << std::endl;
+				mse.push_back(Mat<float>((float)countSuccess,1,1));
+		
+				writeInFile(std::string("./mse.txt"), mse);
+		
+				countSuccess = 0;
+			}
+			
 			iteration--;
+			
+			
 		}
 		
-		if(iteration%100)
-		{
-			mse.push_back(Mat<float>((float)countSuccess,1,1));
-			writeInFile(std::string("./mse.txt"), mse);
-			countSuccess = 0;
-		}
+		
 		
 	}
 	

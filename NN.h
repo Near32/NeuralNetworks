@@ -8,17 +8,25 @@
 //#include <memory>
 #include <vector>
 #include <fstream>
+#include <mutex>
 
 #include "MAT/Mat.h"
 #include "RAND/rand.h"
 #include "RunningStats/RunningStats.h"
 
-#define DECAY 9e-1f
+#define DECAY 5e-1f
 #define LEARNINGRATE 1e-2f
+
 //#define sgd_use
+
+#define outer_momentum
+
+//#define gradient_check
 
 //#define debuglvl1
 //#define debuglvl2
+
+
 
 typedef enum LAYERTYPE{
 	LTINPUT,
@@ -30,7 +38,9 @@ typedef enum LAYERTYPE{
 typedef enum NEURONTYPE{
 	NTNONE,	//used for input layer...
 	NTSIGMOID,
-	NTSOFTMAX
+	NTSOFTMAX,
+	NTTANH,
+	NTRELU
 }	NEURONTYPE;
 
 
@@ -45,20 +55,17 @@ Mat<T> softmaxM(const Mat<T>& z)
 {
 	Mat<T> r(z);
 	
-	T denum = (T)numeric_limits<T>::epsilon();
-	for(int i=1;i<=r.getLine();i++)
+	for(int j=1;j<=r.getColumn();j++)
 	{
-		for(int j=1;j<=r.getColumn();j++)
+		T denum = (T)numeric_limits<T>::epsilon();
+		for(int i=1;i<=r.getLine();i++)
 		{
 			T val = softmaxNUM(r.get(i,j));
 			r.set( val, i,j);
 			denum = denum + val;
 		}
-	}
-	
-	for(int i=1;i<=r.getLine();i++)
-	{
-		for(int j=1;j<=r.getColumn();j++)
+		
+		for(int i=1;i<=r.getLine();i++)
 		{
 			r.set( r.get(i,j)/denum, i,j);
 		}
@@ -75,6 +82,29 @@ Mat<T> softmaxGradM(const Mat<T>& z)
 }
 
 template<typename T>
+Mat<T> tanhM(const Mat<T>& z)
+{
+	Mat<T> r(z);
+	for(int i=1;i<=r.getLine();i++)
+	{
+		for(int j=1;j<=r.getColumn();j++)
+		{
+			T val = tanh(r.get(i,j));
+			r.set( val, i,j);
+		}
+	}
+	
+	return r;
+}
+
+template<typename T>
+Mat<T> tanhGradM(const Mat<T>& z)
+{
+	Mat<T> one((T)(1), z.getLine(), z.getColumn());
+	return one - (tanhM<T>(z) % tanhM(z));
+}
+
+template<typename T>
 Mat<T> identityM(const Mat<T>& z)
 {
 	return z;
@@ -84,6 +114,51 @@ template<typename T>
 Mat<T> identityGradM(const Mat<T>& z)
 {
 	return Mat<T>(1.0f,z.getLine(),z.getColumn());
+}
+
+template<typename T>
+T ReLU(const T& z)
+{
+	return ( z > (T)0 ? z : (T)0);
+}
+
+template<typename T>
+Mat<T> ReLUM(const Mat<T>& z)
+{
+	Mat<T> r(z);
+	for(int i=1;i<=r.getLine();i++)
+	{
+		for(int j=1;j<=r.getColumn();j++)
+		{
+			T val = ReLU(r.get(i,j));
+			r.set( val, i,j);
+		}
+	}
+	
+	return r;
+}
+
+
+template<typename T>
+T ReLUGrad(const T& z)
+{
+	return ( z > (T)0 ? (T)1 : (T)0);
+}
+
+template<typename T>
+Mat<T> ReLUGradM(const Mat<T>& z)
+{
+	Mat<T> r(z);
+	for(int i=1;i<=r.getLine();i++)
+	{
+		for(int j=1;j<=r.getColumn();j++)
+		{
+			T val = ReLUGrad(r.get(i,j));
+			r.set( val, i,j);
+		}
+	}
+	
+	return r;
 }
 
 std::vector<std::string>& split(const std::string &s, char delim, std::vector<std::string> &elems) {
@@ -106,7 +181,7 @@ class Topology
 {
 	public :
 	
-	Topology() : convLayer(false),nbrConvLayer(0)
+	Topology() : convLayer(false),nbrConvLayer(0),IX(0), IY(0), K0(0), nbrConvRELUperLayer(0)
 	{
 		
 	}
@@ -238,6 +313,31 @@ class Topology
 		return NTLayer[nl];
 	}
 	
+	bool operator==( const Topology& otopo)
+	{
+		//TODO : handle the convolutions...
+		bool ret = true;
+		
+		if( this->getNumLayer() == otopo.getNumLayer() )
+		{
+			int nbrlayer = NperNLayer.size();
+			
+			for(int i=nbrlayer;i--;)
+			{
+				if( this->getNeuronNumOnLayer(i) != otopo.getNeuronNumOnLayer(i) )
+				{
+					ret = false;
+					break;
+				}
+			}
+		}
+		else
+		{
+			ret = false;
+		}
+		
+		return ret;
+	}
 	
 	//------------------------------------------------------
 	//------------------------------------------------------
@@ -288,45 +388,62 @@ class Layer;
 //---------------------------------------------
 //---------------------------------------------
 //---------------------------------------------
+//early declaration :
+template<typename T>
+class NN;
+
+NormalRand nrglobal(0.0f,1.0f,1234567);
+std::mutex mutexNR;
 
 template<typename T>
 class Connection
 {
 	public :
 	
-	static T randomWeight(void)	{	return (T) (rand()/T(RAND_MAX) )/100.0f ;	}
+	static T randomWeight(void)	{	return (T) (rand()/T(RAND_MAX) )*1e-3f ;	}
+	static T randomWeightGaussian(void)	{	mutexNR.lock();
+											T ret = (T) nrglobal.dev()*1e-1f ;
+											mutexNR.unlock();
+												return ret ;	}
 	NormalRand* nr;
+	NN<T>* net;
 	
-	Connection() : idxConnection(0), previousLayer(NULL), nextLayer(NULL), W(Mat<T>((T)0,1,1)), dW(Mat<T>((T)0,1,1)), lastDeltaW(Mat<T>((T)0,1,1)),lr((T)LEARNINGRATE), decay((T)DECAY)
+	Connection() : idxConnection(0), previousLayer(NULL), nextLayer(NULL), W(Mat<T>((T)0,1,1)), dW(Mat<T>((T)0,1,1)), lastDeltaW(Mat<T>((T)0,1,1)),lr((T)LEARNINGRATE), decay((T)DECAY), lastBatchDeltaW(Mat<T>(1,1)), batchDeltaW(Mat<T>(1,1)), batchCounter(0)
 	{
 		nr = new NormalRand( 0.0f, 10.0f, 1029);
+		net = NULL;
 	}
 	
 	
-	Connection(Layer<T>* previousLayer_, Layer<T>* nextLayer_, unsigned int idxConnection_) : idxConnection(idxConnection_), previousLayer(previousLayer_), nextLayer(nextLayer_), W(Mat<T>(1,1)), dW(Mat<T>(1,1)), lastDeltaW(Mat<T>(1,1)),lr((T)LEARNINGRATE), decay((T)DECAY)
+	Connection(Layer<T>* previousLayer_, Layer<T>* nextLayer_, unsigned int idxConnection_, const T& lr_ = (T)LEARNINGRATE ) : idxConnection(idxConnection_), previousLayer(previousLayer_), nextLayer(nextLayer_), W(Mat<T>(1,1)), dW(Mat<T>(1,1)), lastDeltaW(Mat<T>(1,1)),lr(lr_), decay((T)DECAY), lastBatchDeltaW(Mat<T>(1,1)), batchDeltaW(Mat<T>(1,1)), batchCounter(0)
 	{
+		net = previousLayer->net;
+		
 		nbrIN = previousLayer->getNbrNeurons();
 		previousLayer->setOutConnection(this);
 		nbrOUT = nextLayer->getNbrNeurons();
 		nextLayer->setInConnection(this);
 		
 		W = Mat<T>((T)0,nbrOUT,nbrIN+1);
-		dW = Mat<T>((T)0,nbrOUT,nbrIN);
+		dW = Mat<T>((T)0,nbrOUT,nbrIN+1);
 		lastDeltaW = W;
+		batchDeltaW = W;
+		lastBatchDeltaW = W;
 		
 		for(int i=1;i<=W.getLine();i++)
 		{
 			for(int j=1;j<=W.getColumn();j++)
 			{
-				W.set( (T)randomWeight(), i,j);
+				W.set( (T)randomWeightGaussian(), i,j);
 			}
 		}
 	
 		nr = new NormalRand( 0.0f, 10.0f, 1029);
 	}
 	
-	Connection(Layer<T>* previousLayer_, Layer<T>* nextLayer_, unsigned int idxConnection_, const Mat<T>& W_) : idxConnection(idxConnection_), previousLayer(previousLayer_), nextLayer(nextLayer_), W(W_), dW(Mat<T>(0.0f,W_.getLine(),W_.getColumn())), lastDeltaW(Mat<T>(0.0f,W_.getLine(),W_.getColumn())), lr((T)LEARNINGRATE), decay((T)DECAY)
+	Connection(Layer<T>* previousLayer_, Layer<T>* nextLayer_, unsigned int idxConnection_, const Mat<T>& W_, const T& lr_ = (T)LEARNINGRATE) : idxConnection(idxConnection_), previousLayer(previousLayer_), nextLayer(nextLayer_), W(W_), dW(Mat<T>(0.0f,W_.getLine(),W_.getColumn())), lastDeltaW(Mat<T>(0.0f,W_.getLine(),W_.getColumn())), lr(lr_), decay((T)DECAY), lastBatchDeltaW(Mat<T>(0.0f,W_.getLine(),W_.getColumn())), batchDeltaW(Mat<T>(0.0f,W_.getLine(),W_.getColumn()))
 	{
+		net = previousLayer->net;
 		nbrIN = previousLayer->getNbrNeurons();
 		previousLayer->setOutConnection(this);
 		nbrOUT = nextLayer->getNbrNeurons();
@@ -343,8 +460,60 @@ class Connection
 	
 	void backProp(const Mat<float> errorOut, const Mat<float>& actIn)
 	{
-		//Batch Gradient Descent :
-		//this->dW += errorOut * transpose(actIn);
+		//Stochastic Gradient Descent  :
+
+		Mat<float> sgd( dW.getLine(), dW.getColumn()-1);	//negative or positive random..
+		this->dW = 0.0f*sgd;
+		for(int k=1;k<=actIn.getColumn();k++)
+		{
+#ifdef sgd_use		
+			for(int i=1;i<=sgd.getLine();i++)
+			{
+				for(int j=1;j<=sgd.getColumn();j++)
+				{
+					float val = nr->dev();
+					if( val > 	(float)0)
+					{
+						sgd.set( 1.0f, i,j);
+					}
+					else
+					{
+						sgd.set( 0.0f, i,j);
+					}
+				}
+			}
+		
+			this->dW += sgd % ( Cola(errorOut,k) * transpose( Cola(actIn,k) ) );
+#else
+			this->dW += Cola(errorOut,k) * transpose( Cola(actIn,k) );
+#endif		
+			
+		}
+
+		
+		//--------------------------------------------------------------------
+		
+		
+		//Mat<float> ddW( operatorL( this->lr * (this->dW+ this->decay* extract(this->W,1,1,this->dW.getLine(),this->dW.getColumn()) ), this->lr * (errorOut) ) );
+		this->dW = operatorL( this->lr * this->dW, this->lr * (errorOut) );
+		Mat<float> deltaW( dW + this->decay * this->lastDeltaW  );
+
+#ifdef gradient_check		
+		std::cout << " NORME DELTA W : " << norme2(deltaW) << " CONNECTION : " << idxConnection << std::endl;
+#endif		
+		W -= deltaW;
+		this->lastDeltaW = deltaW;
+		//W -= Mat<float>( lr * (dW+decay* extract(W,1,1,dW.getLine(),dW.getColumn()) ), (float)0, 1,1, dW.getLine(), dW.getColumn()+1);
+		//W -= Mat<float>( lr * (errorOut), (float)0, 1,dW.getColumn()+1, dW.getLine(), dW.getColumn()+1);
+		
+	}
+	
+	
+	
+	
+	void backPropBATCH(const Mat<float> errorOut, const Mat<float>& actIn, int batchSize = 100)
+	{
+		//TODO : investigate the momentum formula ....
 		//Stochastic Gradient Descent  :
 #ifdef sgd_use		
 		Mat<float> sgd( dW.getLine(), dW.getColumn());	//negative or positive random..
@@ -364,33 +533,82 @@ class Connection
 			}
 		}
 		
-		this->dW = sgd % (errorOut * transpose(actIn));
+		Mat<float> currentdW( sgd % (errorOut * transpose(actIn)) );
 #else
-		this->dW = errorOut * transpose(actIn);
+		Mat<float> currentdW( errorOut * transpose(actIn) );
 #endif		
 		
 		//--------------------------------------------------------------------
 		
+#ifndef outer_momentum		
+		Mat<float> currentDeltaW( operatorL( 
+				this->lr * currentdW,
+				this->lr * (errorOut) ) );
+				Mat<float> currentBatchDeltaW( currentDeltaW + this->decay * this->lastBatchDeltaW );
+		//Mat<float> currentBatchDeltaW( (1.0f-this->decay) * currentDeltaW + this->decay * this->lastBatchDeltaW );
+		this->lastBatchDeltaW = currentBatchDeltaW;
 		
-		//Mat<float> ddW( operatorL( this->lr * (this->dW+ this->decay* extract(this->W,1,1,this->dW.getLine(),this->dW.getColumn()) ), this->lr * (errorOut) ) );
-		Mat<float> deltaW( operatorL( 
-				this->lr * this->dW,
-				this->lr * (errorOut) )
-				+ this->decay * this->lastDeltaW  
-						);
-#ifdef debuglvl2		
-		std::cout << " NORME DELTA W : " << norme2(deltaW) << " CONNECTION : " << idxConnection << std::endl;
+		this->batchDeltaW += currentBatchDeltaW;
+#else
+		Mat<float> currentBatchDeltaW( operatorL( 
+				this->lr * currentdW,
+				this->lr * (errorOut) ) );
+		
+		this->batchDeltaW += currentBatchDeltaW;
+#endif
+		this->batchCounter++;
+		
+		if( batchCounter >= batchSize)
+		{			
+#ifdef outer_momentum			
+			//Mat<float> currentBatchDeltaW( (1.0f-this->decay) * this->batchDeltaW + this->decay * this->lastBatchDeltaW );
+			Mat<float> currentBatchDeltaW( this->batchDeltaW + this->decay * this->lastBatchDeltaW );
+			this->W -= currentBatchDeltaW;
+			this->lastBatchDeltaW = currentBatchDeltaW;
+#else
+			this->W -= this->batchDeltaW;
+#endif			
+			
+#ifdef gradient_check		
+		std::cout << " NORME DELTA W : " << norme2(this->batchDeltaW) << " CONNECTION : " << idxConnection << std::endl;
 #endif		
-		W -= deltaW;
-		this->lastDeltaW = deltaW;
-		//W -= Mat<float>( lr * (dW+decay* extract(W,1,1,dW.getLine(),dW.getColumn()) ), (float)0, 1,1, dW.getLine(), dW.getColumn()+1);
-		//W -= Mat<float>( lr * (errorOut), (float)0, 1,dW.getColumn()+1, dW.getLine(), dW.getColumn()+1);
-		
+			this->net->rsNN.tadd( std::string("NORME dW : connection : ")+std::to_string(idxConnection), norme2(this->batchDeltaW) );			
+			this->batchDeltaW *= 0.0f;
+			this->batchCounter = 0;
+		}
+	}
+	
+	void applyGradient(const Mat<T>& grad)
+	{
+		if(grad.getLine() == this->W.getLine() && grad.getColumn() == this->W.getColumn())
+		{
+			this->W += grad;
+		}
+		else
+		{
+			throw;
+		}
 	}
 	
 	Mat<T> getWeights()	const
 	{
 		return W;
+	}
+	
+	Mat<T> getDeltaWeight()	const
+	{
+		return this->dW;
+	}
+	
+	bool setWeights(const Mat<T>& newW)
+	{
+		if( newW.getLine() == this->W.getLine() && newW.getColumn() == this->W.getColumn() )
+		{
+			this->W = newW;
+			return true;
+		}
+		
+		return false;
 	}
 	
 	Mat<T> getWeights(unsigned int idx)	const
@@ -458,6 +676,10 @@ class Connection
 	
 	T lr;	//learning rate.
 	T decay;
+	
+	int batchCounter;
+	Mat<T> batchDeltaW;
+	Mat<T> lastBatchDeltaW;
 };
 
 
@@ -618,9 +840,11 @@ class NN;
 template<typename T>
 class Layer
 {
+	public :
+	NN<T>* net;
+	
 	protected :
 	
-	NN<T>* net;
 	unsigned int nbrNeurons;
 	//does not take into account the bias neuron...
 	
@@ -673,6 +897,20 @@ class Layer
 			}
 			break;
 			
+			case NTTANH :
+			{
+				this->function = tanhM<T>;
+				this->functionDerivative = tanhGradM<T>;
+			}
+			break;
+			
+			case NTRELU :
+			{
+				this->function = ReLUM<T>;
+				this->functionDerivative = ReLUGradM<T>;
+			}
+			break;
+			
 			case NTNONE :
 			{
 				this->function = identityM<T>;
@@ -698,6 +936,16 @@ class Layer
 		switch(this->ntype)
 		{
 			case NTSIGMOID :
+			{
+				for(int i=0;i<=nbrNeurons;i++)
+				{
+					outputs.set( neurons[i]->update(inputs), i+1,1);
+					activations.set( neurons[i]->getActivation(), i+1,1);
+				}
+			}
+			break;
+			
+			case NTTANH :
 			{
 				for(int i=0;i<=nbrNeurons;i++)
 				{
@@ -801,6 +1049,37 @@ class Layer
 		return this->error;
 	}
 	
+	virtual Mat<T> getDeltaWeight()	const
+	{
+		return this->outConnection->getDeltaWeight();
+	}
+	
+	virtual void applyGradient(const Mat<T>& grad)
+	{
+		this->outConnection->applyGradient( grad);
+	}
+	
+	
+	
+	virtual Mat<T> backPropBATCH(const Mat<T>& errorPrev_, int batchSize = 100)
+	{
+		Mat<float> actThis( extract(this->getActivations(), 1,1, nbrNeurons,1) );
+		
+		if(this->ltype == LTOUTPUT )
+		{
+			this->error = errorPrev_;
+		}
+		else
+		{
+				Mat<float> w( extract( outConnection->getWeights(), 1,1, errorPrev_.getLine(), actThis.getLine() ) );
+				this->error = ( transpose(w) * errorPrev_) % functionDerivative( actThis );
+				
+				outConnection->backPropBATCH( errorPrev_, actThis, batchSize);
+		}
+		
+		return this->error;
+	}
+	
 	
 	
 	void setInConnection(Connection<T>* inc)
@@ -862,12 +1141,11 @@ class Layer2 : public Layer<T>
 	
 	virtual Mat<T> feedForward(const Mat<T>& inputs_)	override
 	{
-		//this->inputs = operatorC(inputs_,Mat<T>((T)1,1,1));
 		this->inputs = inputs_;
 		
 		switch(this->ntype)
 		{
-			case NTSIGMOID :
+			default :
 			{
 				switch(this->ltype)
 				{
@@ -889,6 +1167,7 @@ class Layer2 : public Layer<T>
 				
 			}
 			break;
+			
 			
 			case NTSOFTMAX :
 			{
@@ -917,29 +1196,6 @@ class Layer2 : public Layer<T>
 				
 				//let us normalize those outputs values :
 				for(int i=1;i<=this->nbrNeurons;i++)	this->outputs.set( this->outputs.get(i,1)/denum, i,1);
-				
-			}
-			break;
-			
-			case NTNONE :
-			{
-				switch(this->ltype)
-				{
-					default :
-					{
-						this->activations = this->inConnection->getWeights()*this->inputs;
-					}
-					break;
-			
-					case LTINPUT :
-					{
-						this->activations = this->inputs;
-					}
-					break;
-			
-				}
-				
-				this->outputs = this->function(this->activations);
 				
 			}
 			break;
@@ -995,6 +1251,27 @@ class Layer2 : public Layer<T>
 	
 	virtual Mat<T> backProp(const Mat<T>& errorPrev_)	override
 	{
+		Mat<float> actThis( extract(this->activations, 1,1, this->nbrNeurons,this->activations.getColumn() ) );
+		
+		if(this->ltype == LTOUTPUT )
+		{
+			this->error = errorPrev_;
+		}
+		else
+		{
+				Mat<float> w( extract( this->outConnection->getWeights(), 1,1, errorPrev_.getLine(), actThis.getLine() ) );
+				this->error = ( transpose(w) * errorPrev_) % this->functionDerivative( actThis );
+				//TODO : figuring out why is the delta left multiplied ?
+				this->outConnection->backProp( errorPrev_, actThis);
+		}
+		
+		return this->error;
+	}
+	
+	
+	
+	virtual Mat<T> backPropBATCH(const Mat<T>& errorPrev_, int batchSize = 100)	override
+	{
 		Mat<float> actThis( extract(this->activations, 1,1, this->nbrNeurons,1) );
 		
 		if(this->ltype == LTOUTPUT )
@@ -1006,7 +1283,7 @@ class Layer2 : public Layer<T>
 				Mat<float> w( extract( this->outConnection->getWeights(), 1,1, errorPrev_.getLine(), actThis.getLine() ) );
 				this->error = ( transpose(w) * errorPrev_) % this->functionDerivative( actThis );
 				
-				this->outConnection->backProp( errorPrev_, actThis);
+				this->outConnection->backPropBATCH( errorPrev_, actThis, batchSize);
 		}
 		
 		return this->error;
@@ -1023,20 +1300,24 @@ class Layer2 : public Layer<T>
 //---------------------------------------------
 //---------------------------------------------
 
-
 template<typename T>
 class NN
 {
 	public :
+	std::mutex mutexNN;
+	
 	
 	//-----------------------------
 	bool learning;
 	Topology topology;
+	T lr;
+	
+	std::string filepathRS;
+	RunningStats<T> rsNN;
 	//-----------------------------
 	
-	NN(const Topology& topo) : topology(topo), learning(true), numLayer(topo.getNumLayer()),outputs(Mat<T>((T)0,topo.getNeuronNumOnLayer(numLayer-1),1))
+	NN(const Topology& topo,  const T& lr_ = (T)LEARNINGRATE, const std::string& filepathRS_ = std::string("./NN.txt") ) : topology(topo), learning(false), numLayer(topo.getNumLayer()),outputs(Mat<T>((T)0,topo.getNeuronNumOnLayer(numLayer-1),1)), lr(lr_), filepathRS(filepathRS_),rsNN(RunningStats<T>(filepathRS))
 	{
-		
 		
 		//-------------------------------------------
 		//-------------------------------------------
@@ -1070,7 +1351,7 @@ class NN
 		
 		for(unsigned int nl=0;nl<numLayer-1;nl++)
 		{
-			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl ) );
+			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl, this->lr ) );
 			
 			std::cout << "Made connections number " << nl << " between layers  " << nl << " and " << nl+1 << "." << std::endl;
 			//std::cout << "Weights are : " << std::endl;
@@ -1080,10 +1361,10 @@ class NN
 		
 	}
 	
-	NN(NN<T>* onet) : topology(onet->topology),learning(true), numLayer(topology.getNumLayer()),outputs(Mat<T>((T)0,topology.getNeuronNumOnLayer(numLayer-1),1))
+	NN(NN<T>* onet, const std::string& filepathRS_ = std::string("./NN.txt") ) : topology(onet->topology),learning(false), numLayer(topology.getNumLayer()),outputs(Mat<T>((T)0,topology.getNeuronNumOnLayer(numLayer-1),1)), lr(onet->lr), filepathRS(filepathRS_)
 	{
 		
-		
+		rsNN = RunningStats<T>(filepathRS);
 		//-------------------------------------------
 		//-------------------------------------------
 		
@@ -1117,7 +1398,7 @@ class NN
 		std::vector<Connection<T>*> oconn = onet->getConnections();
 		for(unsigned int nl=0;nl<numLayer-1;nl++)
 		{
-			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl, oconn[nl]->getWeights() ) );
+			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl, oconn[nl]->getWeights(), this->lr ) );
 			
 			std::cout << "Made connections number " << nl << " between layers  " << nl << " and " << nl+1 << "." << std::endl;
 			//std::cout << "Weights are : " << std::endl;
@@ -1127,8 +1408,9 @@ class NN
 		
 	}
 	
-	NN(const std::string& filepath) : topology(Topology()), learning(true), outputs(Mat<T>((T)0,1,1))
+	NN(const std::string& filepath, const T& lr_ = (T)LEARNINGRATE, const std::string& filepathRS_ = std::string("./NN.txt") ) : topology(Topology()), learning(false), outputs(Mat<T>((T)0,1,1)), lr(lr_), filepathRS(filepathRS_)
 	{
+		rsNN = RunningStats<T>(filepathRS);
 		this->load(filepath);
 	}
 	
@@ -1145,28 +1427,140 @@ class NN
 		}
 	}
 	
+	
+	NN<T>& operator=( const NN<T>& onet)
+	{
+		if( this != &onet)
+		{
+			this->~NN();
+			
+			//filepath RS remains the same, but we create a new history of datas :
+			rsNN = RunningStats<T>(filepathRS);
+			this->topology = onet.topology;
+			this->learning = false;
+			this->numLayer = this->topology.getNumLayer();
+			this->outputs = Mat<T>((T)0,this->topology.getNeuronNumOnLayer(numLayer-1),1);
+			this->lr = onet.lr;				
+		
+			//-------------------------------------------
+			//-------------------------------------------
+		
+			//-------------------------------------------
+			//-------------------------------------------
+		
+			//let us create the layers :
+		
+			for(unsigned int nl=0;nl<numLayer;nl++)
+			{
+				unsigned int currentLayerNbrNeuron = topology.getNeuronNumOnLayer(nl);
+				NEURONTYPE currentLayerNeuronType = topology.getNeuronTypeOnLayer(nl);
+				m_layers.push_back( new Layer2<T>(this, LTNORMAL, currentLayerNeuronType, currentLayerNbrNeuron, nl ) );
+				std::cout << "Made a layer of " << currentLayerNbrNeuron << " Neurons and 1 BiasNeuron." << std::endl;
+			}
+		
+			m_layers[0]->ltype = LTINPUT;
+			m_layers[numLayer-1]->ltype = LTOUTPUT;
+		
+			//bias neurons are automatically inserted by the layers...
+		
+		
+			//-------------------------------------------
+			//-------------------------------------------
+		
+			//-------------------------------------------
+			//-------------------------------------------
+		
+			//Let us create the connections :
+		
+			std::vector<Connection<T>*> oconn = onet.getConnections();
+			for(unsigned int nl=0;nl<numLayer-1;nl++)
+			{
+				m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl, oconn[nl]->getWeights(), this->lr ) );
+			
+				std::cout << "Made connections number " << nl << " between layers  " << nl << " and " << nl+1 << "." << std::endl;
+			}
+		}
+			
+		
+		
+		return *this;
+	}
+	
 	Mat<T> feedForward(const Mat<T>& inputs)
 	{
+		mutexNN.lock();
+		
 		outputs = inputs;
 		
 		for(int i=0;i<numLayer;i++)
 		{
 			outputs = m_layers[i]->feedForward(outputs);
-			outputs = operatorC(outputs, Mat<T>((T)1,1,1) );
+			outputs = operatorC(outputs, Mat<T>((T)1,1,outputs.getColumn()) );
 		}
 		
-		return extract(outputs,1,1, outputs.getLine()-1,1);
+		Mat<float> ret( extract(outputs,1,1, outputs.getLine()-1,outputs.getColumn()) );
+		mutexNN.unlock();
+		
+		return ret;
 	}
 	
 	void backProp(const Mat<T>& target)
 	{
-		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, target.getLine(), 1)  );
+		mutexNN.lock();
+		
+		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, target.getLine(), target.getColumn() )  );
 		//Mat<float> errorBackProp( ( (-1.0f)*(target-actLast) ) % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
 		Mat<float> errorBackProp(  (m_layers[numLayer-1]->function(actLast) - target )  % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
 		
 		for(int i=numLayer;i--;)
 		{
 			errorBackProp = m_layers[i]->backProp(errorBackProp);
+			//std::cout << " i = " << i << std::endl;
+			//transpose(errorBackProp).afficher();
+		}
+		
+		mutexNN.unlock();
+	}
+	
+	void backPropBATCH(const Mat<T>& target, int batchSize = 100)
+	{
+		mutexNN.lock();
+		
+		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, target.getLine(), 1)  );
+		//Mat<float> errorBackProp( ( (-1.0f)*(target-actLast) ) % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
+		Mat<float> errorBackProp(  (m_layers[numLayer-1]->function(actLast) - target )  % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
+		
+		for(int i=numLayer;i--;)
+		{
+			errorBackProp = m_layers[i]->backPropBATCH(errorBackProp, batchSize);
+			//std::cout << " i = " << i << std::endl;
+			//transpose(errorBackProp).afficher();
+		}
+		
+		mutexNN.unlock();
+	}
+	
+	void backPropDelta(const Mat<T>& delta)
+	{
+		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		Mat<float> errorBackProp(  delta  % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
+		
+		for(int i=numLayer;i--;)
+		{
+			errorBackProp = m_layers[i]->backProp(errorBackProp);
+			//std::cout << " i = " << i << std::endl;
+			//transpose(errorBackProp).afficher();
+		}
+	}
+	
+	void backPropDeltaBATCH(const Mat<T>& delta, int batchSize = 100)
+	{
+		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		Mat<float> errorBackProp(  delta  % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
+		
+		for(int i=numLayer;i--;)
+		{
+			errorBackProp = m_layers[i]->backPropBATCH(errorBackProp, batchSize);
 			//std::cout << " i = " << i << std::endl;
 			//transpose(errorBackProp).afficher();
 		}
@@ -1185,8 +1579,12 @@ class NN
 	}
 	
 	
-	Mat<T> getGradientWRTinput()
+	Mat<T> getGradientWRTinput(Mat<T>* input = NULL)
 	{
+		if( input != NULL)	this->feedForward(*input);
+		
+		mutexNN.lock();
+		
 		Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine()-1, 1)  );	//nbrOut x 1
 		Mat<T> WLast( m_connections[numLayer-2]->getWeights() );	//nbrOut x nbrIn+1
 		WLast = extract(WLast, 1,1, WLast.getLine(), WLast.getColumn()-1);	//nbrOut x nbrIn
@@ -1207,6 +1605,8 @@ class NN
 		
 			grad = grad*(gradF*WLast);
 		}
+		
+		mutexNN.unlock();
 		
 		return grad;
 	}
@@ -1277,7 +1677,7 @@ class NN
 		
 		for(unsigned int nl=0;nl<numLayer-1;nl++)
 		{
-			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl ) );
+			m_connections.push_back( new Connection<T>( m_layers[nl], m_layers[nl+1], nl, this->lr ) );
 			
 			std::cout << "Made connections number " << nl << " between layers  " << nl << " and " << nl+1 << "." << std::endl;
 			//std::cout << "Weights are : " << std::endl;
@@ -1294,14 +1694,43 @@ class NN
 	}
 	
 	
-	private :
+	bool updateToward( NN<T>* onet, const T& momentum)
+	{
+		mutexNN.lock();
+		
+		//let us write the topology first :
+		if( this->topology == onet->topology )
+		{
+			std::vector<Connection<T>*> onetconn = onet->getConnections();
+			
+			for(int i=m_connections.size();i--;)
+			{
+				Mat<T> newW( momentum * onetconn[i]->getWeights() );
+				newW += (T)(1.0f-momentum) * this->m_connections[i]->getWeights();
+				
+				this->m_connections[i]->setWeights(newW);
+			}
+			
+			mutexNN.unlock();
+			
+			return true;
+		}
+		
+		std::cout << "ERROR : The Neural Networks are not of the same architecture...!" << std::endl;
+		mutexNN.unlock();
+		
+		return false;	
+	}
+	
+	
+	protected :
 	
 	unsigned int numLayer;
 	Mat<T> outputs;
 	
 	vector<Layer<T>* > m_layers;	//m_layers[layerNum]
 	vector<Connection<T>* > m_connections; //m_connections[connectionNum] / connectionNum == previousLayerNum
-	
+
 };
 
 //---------------------------------------------
@@ -1312,6 +1741,211 @@ class NN
 //---------------------------------------------
 //---------------------------------------------
 
+typedef enum GRADIENTCOMP
+{
+	GCVanilla,
+	GCSGD,
+	GCRMSProp,
+	GCSGDMomentum
+}GRADIENTCOMP;
+
+template<typename T>
+class NNTrainer : public NN<T>
+{
+	public :
+	
+	NNTrainer( NN<T>* net_) : net(net_), NN<T>(net_->topology, net_->lr, net_->filepathRS+"TRAINER")
+	{
+		//initialization of the weights :
+		this->updateToward(this->net, 1.0f);
+		ConnGrad.resize(this->numLayer-1);
+		dWs.resize(this->numLayer-1);
+		for(int i=this->numLayer;i--;)
+		{
+			if( i< this->numLayer-1)
+			{
+				ConnGrad[i] =  this->m_layers[i]->getDeltaWeight();
+			}
+		}
+		
+	}
+	
+	~NNTrainer()
+	{
+	
+	}
+	
+	
+	bool updateNet( const T& momentum)
+	{
+		return this->net->updateToward(this, momentum);
+	}
+	
+	void accumulateGradient(const Mat<T>& input, const Mat<T>& delta)
+	{
+		//vanilla gradient computation :
+		this->feedForward(input);
+		
+		//let us compute the deltas :
+		this->deltas.clear();
+		this->deltas.resize(this->numLayer+1);
+		
+		Mat<float> actLast( extract(this->m_layers[this->numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		Mat<float> errorBackProp(  delta  % ( this->m_layers[this->numLayer-1]->functionDerivative(actLast) )  );
+		deltas[this->numLayer] = errorBackProp;
+		
+		for(int i=this->numLayer;i--;)
+		{
+			deltas[i] = this->m_layers[i]->backProp( deltas[i+1]);
+			if( i< this->numLayer-1)
+			{
+				dWs[i].push_back( this->m_layers[i]->getDeltaWeight() );
+			}
+		}
+		
+		
+	}
+	
+	void operator()(GRADIENTCOMP gradComputationType = GCVanilla,const T& momentum=(T)1.0f)
+	{
+		//computation of the gradients from the dWs:
+		Mat<float> lastGrad;
+		for(int i=this->numLayer-1;i--;)
+		{
+			//saving history...
+			lastGrad = ConnGrad[i];
+			ConnGrad[i] =((T)0.0f)*dWs[i][0];
+			
+			//computation of the new gradient :
+			
+			switch(gradComputationType)
+			{
+				case GCVanilla :
+				{
+					//vanilla update :
+					ConnGrad[i] *= 0.0f;
+					for(int j=dWs[i].size();j--;)
+					{
+						ConnGrad[i] += dWs[i][j];
+					}
+				}
+				break;
+				
+				case GCSGD :
+				{
+					//SGD :
+					ConnGrad[i] *= 0.0f;
+					Mat<float> sgd(dWs[i][0]);
+					for(int j=dWs[i].size();j--;)
+					{
+						//let us compute the sgd hadamard product :						
+						for(int ii=1;ii<=sgd.getLine();ii++)
+						{
+							for(int jj=1;jj<=sgd.getColumn();jj++)
+							{
+								int val = rand()%2;
+								if(val)
+								{
+									sgd.set( 1.0f,ii,jj);
+								}
+								else
+								{
+									sgd.set( 0.0f,ii,jj);
+								}
+							}
+						}
+						
+						ConnGrad[i] += sgd % dWs[i][j];
+					}
+				}
+				break;
+				
+				case GCSGDMomentum :
+				{
+					//SGD Momentum :
+					float momentum = 0.9f;
+					ConnGrad[i] = momentum*lastGrad;
+					
+					Mat<float> sgd(dWs[i][0]);
+					for(int j=dWs[i].size();j--;)
+					{
+						//let us compute the sgd hadamard product :						
+						for(int ii=1;ii<=sgd.getLine();ii++)
+						{
+							for(int jj=1;jj<=sgd.getColumn();jj++)
+							{
+								int val = rand()%2;
+								if(val)
+								{
+									sgd.set( 1.0f,ii,jj);
+								}
+								else
+								{
+									sgd.set( 0.0f,ii,jj);
+								}
+							}
+						}
+						
+						ConnGrad[i] += (1.0f-momentum) * ( sgd % dWs[i][j] );
+					}
+				}
+				break;
+				
+				default :
+				{
+					//vanilla update :
+					ConnGrad[i] *= 0.0f;
+					for(int j=dWs[i].size();j--;)
+					{
+						ConnGrad[i] += dWs[i][j];
+					}
+				}
+				break;
+				
+				//TODO : RMSprop ; MOMENTUM ; ...
+				
+			}
+		}
+		
+		
+		//application of the gradients :
+		//beware of the -1 : update on the outConnection, no outConnection on the last layer.
+		for(int i=this->numLayer-1;i--;)
+		{
+			this->m_layers[i]->applyGradient( ConnGrad[i] );
+		}
+		
+		//let us update the real net :
+		bool success = this->updateNet(momentum);
+		
+		
+		// reinitialization of the dW :
+		dWs.clear();
+		dWs.resize( this->numLayer-1);
+		
+		//ConnGrad are initialized at the old values, it is okay...
+	}
+	
+	//TODO : batch version...
+	
+	
+	private :
+	
+	NN<T>* net;									//pointer to the NN to train.
+	std::vector<Mat<T> > deltas;				//delta of each each connection.
+	std::vector<std::vector<Mat<T> > > dWs;		//deltaWeights associated with each connection.
+	std::vector<Mat<T> > ConnGrad;				//gradient associated with each connection.
+};
+
+
+
+//---------------------------------------------
+//---------------------------------------------
+//---------------------------------------------
+
+//---------------------------------------------
+//---------------------------------------------
+//---------------------------------------------
 
 
 template<typename T>

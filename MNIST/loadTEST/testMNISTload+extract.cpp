@@ -133,11 +133,13 @@ int main(int argc, char* argv[])
 	std::cout << "Rotation of : " << theta*180.0f/PI << std::endl;
 	//---------------------------------------------------
 	
+	/*
 	Mat<float> center(2,1);
 	center.set( im2.getLine()/2, 1,1);
 	center.set( im2.getColumn()/2, 2,1);
 	im1 = extractDigitPatch(im2,center,theta);
 	im1.afficher();
+	*/
 	
 	/*
 	im2 = rotate(im2,-theta);
@@ -162,7 +164,7 @@ int main(int argc, char* argv[])
 	im1.afficher();
 	*/
 	
-	throw;
+	//throw;
 	
 	/*
 	int iteration = 10000;
@@ -199,7 +201,8 @@ int main(int argc, char* argv[])
 	int success = 0;
 	while( iteration)
 	{
-		Mat<float> input( reshapeV( inputMNIST(labelval) ) );
+		Mat<float> in(inputMNIST(labelval));
+		Mat<float> input( reshapeV( in ) );
 		Mat<float> target( 0.0f, 10,1);
 		target.set( 1.0f, labelval+1, 1);
 		
@@ -208,8 +211,9 @@ int main(int argc, char* argv[])
 			Mat<float> output( nn.feedForward( input));
 			int idmax = idmin( (-1.0f)*output).get(1,1);
 		
+					in.afficher();
 			transpose(output).afficher();
-			std::cout << " ITERATION : " << iteration << " ; IDMAX = " << idmax << std::endl;
+			std::cout << " ITERATION : " << iteration << " ; IDMAX = " << idmax << "  = / = " << (int)labelval+1 << std::endl;
 		
 			if(idmax == labelval+1)
 			{

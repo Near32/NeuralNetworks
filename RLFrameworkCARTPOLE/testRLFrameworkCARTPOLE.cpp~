@@ -3,10 +3,11 @@
 
 int main(int argc, char* argv[])
 {
-	unsigned int nbrepi = 100;
+	std::string filepath("CARTPOLENN");
+	unsigned int nbrepi = 2000;
 	float gamma_ = 0.5f;
 	
-	float EOE = 20.0f;	//in seconds...
+	float EOE = 10.0f;	//in seconds...
 	SimulatorRKCARTPOLE env_(EOE);
 
 	float lr_ = 0.9f;//unused...
@@ -16,7 +17,7 @@ int main(int argc, char* argv[])
 	int dimStateSpace_ = 4;
 	Topology topo;
 	unsigned int nbrneurons = 5;
-	unsigned int nbrlayer = 2;
+	unsigned int nbrlayer = 10;
 	unsigned int nbrinput = dimActionSpace_+dimStateSpace_;
 	unsigned int nbroutput = 1;
 	//topo.push_back(nbrinput,NTNONE);	//input layer
@@ -33,4 +34,5 @@ int main(int argc, char* argv[])
 	
 	instance.run(nbrepi);
 	
+	instance.save(filepath);
 }

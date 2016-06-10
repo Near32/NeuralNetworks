@@ -20,7 +20,7 @@ class Environment
 	
 	}
 	
-	virtual void initialize() =0;
+	virtual void initialize(bool random = false) =0;
 	
 	
 	virtual Mat<T> executeAction(const Mat<T>& action) = 0;
@@ -136,7 +136,7 @@ class SimulatorRK : public Environment<float>
        robotsStates = this->robotsStates; 
     }*/
     
-    virtual void initialize()	override
+    virtual void initialize(bool random = false)	override
     {
     	this->currentTime = 0.0f;
     	this->endSIMULATIONBAD = false;
@@ -241,7 +241,10 @@ class SimulatorRK : public Environment<float>
 			i++;
 			coordRob.set( initState.get(2,idxRobot) ,i,1);
 		}
-		
+		for(int i=1;i<=this->nbrRobots*2;i++)
+		{
+			this->state.set( coordRob.get(i,1), i+2*this->nbrRobots+5, 1);
+		}
 		
 		//--------------------------------------------
 		
@@ -426,7 +429,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
     {
        
        this->currentTime = 0.0f;
-       this->timeStep = 0.01f;
+       this->timeStep = 0.001f;
        this->endSIMULATIONBAD = false;   
        
        this->rk = new RK4( CARTPOLEUPDATE, this);
@@ -455,14 +458,15 @@ class SimulatorRKCARTPOLE : public Environment<float>
        robotsStates = this->robotsStates; 
     }*/
     
-    virtual void initialize()	override
+    virtual void initialize(bool random = false)	override
     {
     	this->currentTime = 0.0f;
     	this->endSIMULATIONBAD = false;
     	//let us build the current stateVector :
         //FORMAT : 4 x nbrRobots
         //TODO : compute the random initialization state :
-        float initTheta = ( ((float)(-rand()%100))+((float)(rand()%100)) )/PI;
+        //float initTheta = ( ((float)(-rand()%100))+((float)(rand()%100)) )/PI;
+        float initTheta = 0.0f;
         while( initTheta > 2*PI)
         {
         	initTheta -= 2*PI;
@@ -471,6 +475,8 @@ class SimulatorRKCARTPOLE : public Environment<float>
         {
         	initTheta += 2*PI;
         }
+        
+        std::cout << " ENVIRONMENT :: " << " THETA INIT = " << initTheta << std::endl;
         
 		this->initState = Mat<float>(0.0f,4,1);
 		this->initState.set( initTheta, 2,1);
@@ -499,7 +505,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
 	{
 		this->action = action;
 		//TODO : figured out the granularity of time needed :
-		float simTime = 0.1f;
+		float simTime = 0.01f;
 		float EndTime = this->currentTime + simTime;
 		
 		
@@ -521,6 +527,12 @@ class SimulatorRKCARTPOLE : public Environment<float>
 		//--------------------------------
 		// compute the reward and store it
 		float theta = this->state.get(2,1);
+		float xpos = this->state.get(1,1);
+		
+		if( fabs_(xpos) > 100.0f)
+		{
+			endSIMULATIONBAD = true;
+		}
 		
 		while( theta > 2*PI)
 		{
@@ -536,10 +548,21 @@ class SimulatorRKCARTPOLE : public Environment<float>
 		rewardCumulative = 1.0f/(1.0f+rewardCumulative);
 		this->reward = Mat<float>(rewardCumulative, 1,1);
 		
-		if(endSIMULATIONBAD || rewardCumulative < 0.8f)
+		if(endSIMULATIONBAD )//|| rewardCumulative < 0.8f)
 		{
 			this->reward *= 0.0f;
+			
+			for(int ii=1;ii<=this->reward.getLine();ii++)
+			{
+				for(int jj=1;jj<=this->reward.getColumn();jj++)
+				{
+					this->reward.set( -1.0f, ii,jj);
+				}
+			}
+			
 		}
+		
+		this->reward *= 1e-1f;
 		//--------------------------------
 			
 		

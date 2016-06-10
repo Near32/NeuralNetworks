@@ -14,14 +14,23 @@ class RunningStats
 	
 	typedef typename std::map<T,std::vector<T> >::iterator tStatIt;
 	typedef typename std::vector<T>::iterator valIt;
+	typedef typename std::map<std::string,std::vector<T> >::iterator stringStatIt;
 	
 	public :
 	
+	RunningStats(std::string file_= std::string("STATS.txt"), int valC_ = 100) : file(file_), tFile(file_+".t.txt")
+	{
+		counter = 0;
+		valC = valC_;
+	}
+	
+	/*
 	RunningStats(std::string file_, int valC_ = 1) : file(file_), tFile(file_+".t.txt")
 	{
 		counter = 0;
 		valC = valC_;
 	}
+	*/
 	
 	~RunningStats()
 	{
@@ -41,6 +50,8 @@ class RunningStats
 		this->writeFile();
 	}
 	
+	
+	//list add : add occurences :
 	inline void ladd(const string lstat)
 	{
 		T val = 1;
@@ -53,6 +64,7 @@ class RunningStats
 		
 		this->writeFile();
 	}
+	
 	
 	inline void mean(const T stat, const T val)
 	{
@@ -67,6 +79,7 @@ class RunningStats
 		this->writeFile();
 	}
 	
+	//compute mean over a ladd and this function : 
 	inline void lmean(const string lstat, const T val)
 	{
 		T value = val;
@@ -101,6 +114,22 @@ class RunningStats
 			myfile << std::endl;
 		}
 		
+		stringStatIt sit;
+		
+		for(sit=stringtStats.begin();sit!=stringtStats.end();sit++)
+		{
+			myfile << (*sit).first << " : " ;
+			
+			//valIt valit;
+			//for(valit = (*it).second.begin() ; valit != (*it).second.end() ; valit++)
+			for(int i=0; i<(*sit).second.size();i++)
+			{
+				myfile << (*sit).second[i] << " , " ;
+			}
+			
+			myfile << std::endl;
+		}
+		
 		myfile.close();
 	}
 	
@@ -125,9 +154,27 @@ class RunningStats
 		myfile.close();
 	}
 	
-	inline void tadd(const T& tstat, const T& val)
+	
+	//temporal datas : 
+	void tadd(const T& tstat, const T& val)
 	{
 		tStats[tstat].insert( tStats[tstat].end(), val);
+		
+		if(counter > valC)
+		{
+			this->tWriteFile();
+			counter = 0;
+		}
+		else
+		{
+			counter++;
+		}
+	}
+	
+	//temporal datas : 
+	void tadd(const std::string& stringstat, const T& val)
+	{
+		stringtStats[stringstat].insert( stringtStats[stringstat].end(), val);
 		
 		if(counter > valC)
 		{
@@ -152,7 +199,7 @@ class RunningStats
 	std::map<T,T> stats;
 	
 	std::map<T,std::vector<T> > tStats;
-	//std::map<T,std::vector<T> > stringtStats;
+	std::map<std::string,std::vector<T> > stringtStats;
 	
 	std::map<string,T> lstats;
 };

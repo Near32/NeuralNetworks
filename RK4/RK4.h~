@@ -10,7 +10,7 @@ class RK4
 {
     protected :
   	
-  	Mat<float> (*func)( Mat<float>&, void*);
+  	Mat<float> (*func)(const Mat<float>&, void*);
     void* objUsed;
     
     Mat<float> stateVector;
@@ -29,7 +29,7 @@ class RK4
 	
     public :
     
-    RK4(Mat<float> (*func_)( Mat<float>&, void*), void* objUsed_) : func(func_)
+    RK4(Mat<float> (*func_)(const Mat<float>&, void*), void* objUsed_) : func(func_)
     {
         this->currentTime = 0;
         this->timeStep = 1e-2f;
@@ -111,7 +111,7 @@ class RK4
 };
 
 
-Mat<float> SRupdate1four( Mat<float>& state, void* swarmObj)
+Mat<float> SRupdate1four(const Mat<float>& state, void* swarmObj)
 {
 	/*% %     state ought to be partitionned the following way :
 	% %     on each colums : state of a given robot of the Swarm
@@ -212,7 +212,7 @@ Mat<float> SRupdate1four( Mat<float>& state, void* swarmObj)
 }
 
 
-Mat<float> CARTPOLEUPDATE( Mat<float>& state, void* obj)
+Mat<float> CARTPOLEUPDATE(const Mat<float>& state, void* obj)
 {
 	/*% %     state :
 	% %     x
@@ -230,8 +230,16 @@ Mat<float> CARTPOLEUPDATE( Mat<float>& state, void* obj)
 	float F = state.get(5,1);
 	float thetadot = state.get(4,1);
 	float theta = state.get(2,1);
+	int qtheta = theta/PI;
+	if(theta>0)
+	{
 	
-	//regularization of theta :
+	}
+	else
+	{
+	
+	}
+	
 	while( theta > 2*PI)
 	{
 		theta-=2*PI;
@@ -240,8 +248,7 @@ Mat<float> CARTPOLEUPDATE( Mat<float>& state, void* obj)
 	{
 		theta += 2*PI;
 	}
-	state.set( theta, 2,1);
-	
+		
 	float stheta = sin(theta);
 	float ctheta = cos(theta);
 	

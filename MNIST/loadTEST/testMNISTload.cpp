@@ -7,7 +7,7 @@
 #include <cstring>
 #include <string>
 
-//#define debuglvl1
+#define debuglvl1
 
 
 // Training image file name
@@ -88,7 +88,8 @@ Mat<float> reshapeV(const Mat<float>& m)
 int main(int argc, char* argv[])
 {
 	//Neural Networks settings :
-	std::string filepath = "neuralnetworksTESTLOAD.IN";
+	//std::string filepath = "neuralnetworksTESTLOAD.IN";
+	std::string filepath = "neuralnetworksDIGITROTATEDPI";
 	NN<float> nn(filepath);
 	nn.learning = false;
 	//------------------------------
@@ -173,7 +174,7 @@ int main(int argc, char* argv[])
 		Mat<float> target( 0.0f, 10,1);
 		target.set( 1.0f, labelval+1, 1);
 		
-		if(labelval < 5)
+		if(labelval < 9)
 		{
 			Mat<float> output( nn.feedForward( input));
 			int idmax = idmin( (-1.0f)*output).get(1,1);
@@ -197,7 +198,7 @@ int main(int argc, char* argv[])
 	label.close();
 	image.close();
 	
-	nn.save(std::string("neuralnetworksTESTLOAD.OUT"));
+	//nn.save(std::string("neuralnetworksTESTLOAD.OUT"));
 		
 	return 0;
 }

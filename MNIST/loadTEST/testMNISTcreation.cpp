@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 	label.close();
 	image.close();
 	
-	nn.save(std::string("neuralnetworks"));
+	//nn.save(std::string("neuralnetworks"));
 		
 	return 0;
 }

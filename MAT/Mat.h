@@ -38,6 +38,7 @@ class Mat
 	T** mat;
 
         Mat();
+        Mat(const int& val);
         Mat(const Mat<T>& m);
         Mat(const Mat<T>& m, T oValue, int d_line, int d_column, int line, int column);	/*initialise les autres valeurs à oValue*/
         Mat(const Mat<T>& m, int delLine[], int cLine, int delColumn[], int cColumn);
@@ -345,6 +346,24 @@ Mat<T>::Mat()
     for(int i=0;i<=m_line-1;i++)
         mat[i] = new T[m_column];
 
+}
+
+
+/*---------------------------------------------*/
+
+
+template<typename T>	/*pas de point virgule en fin de ligne...*/
+Mat<T>::Mat(const int& val)
+{
+    m_line = 1;
+    m_column = 1;
+
+    mat = new T*[m_line];
+
+    for(int i=0;i<=m_line-1;i++)
+        mat[i] = new T[m_column];
+	
+	this->set( (T)val, 1,1);
 }
 
 
@@ -1449,6 +1468,7 @@ Mat<T> operatorL(const Mat<T>& a, const Mat<T>& b)
     else
     {
         cout << "Erreur : impossible de concatener les deux matrices sur les lignes." << endl;
+        throw;
         return Mat<T>(1, 1);
     }
 

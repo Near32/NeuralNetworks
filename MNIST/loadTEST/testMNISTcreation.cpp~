@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 	//topo.push_back(nbrinput,NTNONE);	//input layer
 	topo.push_back(nbrinput,NTSIGMOID);	//input layer
 	
-	topo.push_back(nbrneurons, NTSIGMOID);
+	//topo.push_back(nbrneurons, NTSIGMOID);
 	topo.push_back(15, NTSIGMOID);
 	
 	//topo.push_back(nbroutput, NTSOFTMAX);	//linear output
