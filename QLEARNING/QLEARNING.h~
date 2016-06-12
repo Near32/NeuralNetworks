@@ -1039,10 +1039,12 @@ class DDPGA3C
 	std::vector<std::thread> threadsA3C;
 	int freqUpdate;
 	int nbrIteration;
+	std::vector<bool> NNupdateRequirement;
+	bool needXP;
 	
 	public :
 	
-	DDPGA3C(const unsigned int& nbrepi, const float& gamma_, Environment<float>* env_, FA<float>* fa_, PA<float>* pa_, const float& momentumUpdate_, int freqUpdate_) : gamma(gamma_), env(env_), fa(fa_), pa(pa_), nbrepisode(nbrepi),nbrReplay(100), nbrEpisodeBankXPHolder(1000), momentumUpdate(momentumUpdate_), batchNormInit(false), nbrThread(0), freqUpdate(freqUpdate_)
+	DDPGA3C(const unsigned int& nbrepi, const float& gamma_, Environment<float>* env_, FA<float>* fa_, PA<float>* pa_, const float& momentumUpdate_, int freqUpdate_) : gamma(gamma_), env(env_), fa(fa_), pa(pa_), nbrepisode(nbrepi),nbrReplay(100), nbrEpisodeBankXPHolder(1000), momentumUpdate(momentumUpdate_), batchNormInit(false), nbrThread(0), freqUpdate(freqUpdate_), needXP(true)
 	{
 		//TODO : evaluate the number of REPLAY NEEDED.
 		targetFA = (FA<float>*) new QFANN<float>( fa_->getLR(), fa_->getEPS(), gamma_, ((QFANN<float>*)fa_)->dimActionSpace, fa_->getNetPointer()->topology, ((QFANN<float>*)fa)->filepathRSNN+std::string(".FAtarget"));
@@ -1082,7 +1084,8 @@ class DDPGA3C
 		
 		
 		//CREATION OF THE THREADS :
-		for(int k=nbrThreadNeeded;k--;)	threadsA3C.push_back( std::thread( &DDPGA3C::runThread, std::ref(*this) ) ); 
+		//for(int k=nbrThreadNeeded;k--;)	threadsA3C.push_back( std::thread( &DDPGA3C::runThread, std::ref(*this) ) ); 
+		for(int k=nbrThreadNeeded;k--;)	threadsA3C.push_back( std::thread( &DDPGA3C::runThreadEpisode, std::ref(*this) ) ); 
 		bool continuer = true;
 				
 		for(int i=0;i<=nbrepisode;i++)
@@ -1112,19 +1115,41 @@ class DDPGA3C
 				//this->fa->updateDelta(operatorC(S,A), (-1.0f)*error );
 				
 				/*
+				Mat<float> Aprevious(A);
+				Mat<float> Rprevious(R);
 				for(int kk=1000;kk--;)
 				{
-				Mat<float> A1( this->pa->estimateAction(S1) ); 
-				Mat<float> Qs1a1(  this->fa->getQvalue(S1,A1) );
-				Mat<float> error(R+gamma*Qs1a1-Qsa);
-				this->fa->updateDelta(operatorC(S,A), error );
+				this->env->initialize(false);
+				Mat<float> St(this->env->getCurrentState());
+				Mat<float> At( this->pa->estimateAction(St) ); 
+				Mat<float> Qsat( this->fa->getQvalue(St,At) );
+				Mat<float> Rt(this->env->executeAction(At));
+				Mat<float> S1t(this->env->getCurrentState());
+				Mat<float> A1t( this->pa->estimateAction(S1t) ); 
+				Mat<float> Qs1a1t(  this->fa->getQvalue(S1t,A1t) );
+				Mat<float> errort(Qsat-(R+gamma*Qs1a1t) );
+				this->fa->updateDelta(operatorC(St,At), errort );
 				
-				std::cout << " iteration : " << kk << " ; ERROR NORM : " << norme2(error) << std::endl;
+				std::cout << " iteration : " << kk << " ; ERROR NORM FA : " << norme2(errort) << std::endl;
+				
+				Mat<float> delta( Rt+gamma*Qs1a1t - Qsat);				
+				//Mat<float> delta( Rt);				
+				//Mat<float> dlogpa( inverseM(At) );
+				Mat<float> dlogpa( 1.0f,1,1 );
+				Mat<float> error( (1.0f)*(dlogpa*delta));
+				this->pa->updateDelta(St, error);
+			
+				//std::cout << " iteration : " << kk << " ; ERROR NORM PA: " << norme2(error) << " dif A1 - A  " << (At-Aprevious).get(1,1) << " REWARD : " << Rt.get(1,1) << " diff : " << (Rt-Rprevious).get(1,1) << " theta = " << S1t.get(2,1)*180.0f/PI <<  std::endl;
+				
+				Rprevious = Rt;
+				Aprevious = At;
 				
 				}
 				
-				//throw;
+				throw;
 				*/
+				
+				
 				
 				
 				//POLICY GRADIENT : METHOD 3 : DDPG : fixed target : idem for the policy...
@@ -1166,23 +1191,26 @@ class DDPGA3C
 				
 				//VALIDATION OF THE ASCENT BY USING A MINUS DLOGDA * DELTA...
 				/*
-				Mat<float> Aprevious(A);
-				Mat<float> Rprevious(R);
+				//Mat<float> Aprevious(A);
+				//Mat<float> Rprevious(R);
 				for(int kk=1000;kk--;)
 				{
-					Mat<float> At(this->pa->estimateAction(S));
-					Mat<float> Qsat( this->fa->getQvalue(S,At) );
+					this->env->initialize(false);
+					Mat<float> St(this->env->getCurrentState());
+					Mat<float> At(this->pa->estimateAction(St));
+					Mat<float> Qsat( this->fa->getQvalue(St,At) );
 					Mat<float> Rt(this->env->executeAction(At));
 					Mat<float> S1t(this->env->getCurrentState());
 					Mat<float> A1t( this->pa->estimateAction(S1t) ); 
 					Mat<float> Qs1a1t(  this->fa->getQvalue(S1t,A1t) );
 					Mat<float> delta( Rt+gamma*Qs1a1t - Qsat);				
 					//Mat<float> delta( Rt);				
-					Mat<float> dlogpa( inverseM(At) );
+					//Mat<float> dlogpa( inverseM(At) );
+					Mat<float> dlogpa( 1.0f,1,1 );
 					Mat<float> error( (-1.0f)*(dlogpa*delta));
-					this->pa->updateDelta(S, error);
+					this->pa->updateDelta(St, error);
 				
-					std::cout << " iteration : " << kk << " ; ERROR NORM : " << norme2(error) << " dif A1 - A  " << (At-Aprevious).get(1,1) << " REWARD : " << Rt.get(1,1) << " diff : " << (Rt-Rprevious).get(1,1) << "theta = " << S1t.get(2,1)*180.0f/PI <<  std::endl;
+					std::cout << " iteration : " << kk << " ; ERROR NORM : " << norme2(error) << " dif A1 - A  " << (At-Aprevious).get(1,1) << " REWARD : " << Rt.get(1,1) << " diff : " << (Rt-Rprevious).get(1,1) << " theta = " << S1t.get(2,1)*180.0f/PI <<  std::endl;
 					
 					Rprevious = Rt;
 					Aprevious = At;
@@ -1190,6 +1218,7 @@ class DDPGA3C
 				
 				throw;
 				*/
+				
 				
 				//totalReturn :
 				if(iteration == 0)
@@ -1209,7 +1238,10 @@ class DDPGA3C
 				//---------------------------------------
 				//XP REPLAY :
 				//add the new exp :
-				this->bankXP.push_back( XPActorCritic(S,A,S1,A1,R) );
+				if( this->needXP)
+				{
+					this->bankXP.push_back( XPActorCritic(S,A,S1,A1,R) );
+				}
 				//---------------------------------------
 				//---------------------------------------
 				//---------------------------------------
@@ -1372,7 +1404,9 @@ class DDPGA3C
 	{
 		mInit.lock();
 		this->nbrThread++;
+		this->needXP = false;
 		int idxThread = this->nbrThread;
+		this->NNupdateRequirement.push_back(false);
 		this->mXPrefresh.push_back( new std::mutex() );
 		mInit.unlock();
 		
@@ -1385,6 +1419,17 @@ class DDPGA3C
 			{
 				for(int i=(nbrReplay<bankXP.size()?nbrReplay:bankXP.size());i--;)
 				{
+					//NN UPDATE :
+					//TODO:estimate the need of a mutex or not ?
+					if(this->NNupdateRequirement[idxThread-1])
+					{
+						trainerPA.updateToward( ((QPANN<float>*)this->pa)->getNetPointer(), 1.0f );
+						trainerFA.updateToward( ((QFANN<float>*)this->fa)->getNetPointer(), 1.0f );
+						this->NNupdateRequirement[idxThread-1] = false;
+					}
+					
+					
+					
 					this->mXPrefresh[idxThread-1]->lock();
 					
 					
@@ -1429,13 +1474,13 @@ class DDPGA3C
 					
 				
 					//POLICY GRADIENT : METHOD 6: TD 0 ACtor Critic : DSPG+fixed target
-					
+					/*
 					Mat<float> bankdelta( bankXP[idx].R+gamma*bankQs1a1TARGET - bankQsa);				
 					Mat<float> bankdlogpa( inverseM(bankXP[idx].A) );
 					//TODO : this is not stochastic : not a probability...
 					//this->pa->updateDeltaBATCH(bankXP[idx].S, (-1.0f/nbrReplay)*(bankdlogpa*bankdelta), batchSize);
 					trainerPA.accumulateGradient(bankXP[idx].S, (-1.0f/nbrReplay)*(bankdlogpa*bankdelta));
-					
+					*/
 					
 					
 					this->mXPrefresh[idxThread-1]->unlock();
@@ -1445,12 +1490,21 @@ class DDPGA3C
 				//UPDATE OF THE NETWORKS now that a minibatch has been done :
 				this->mPAupdate.lock();
 				std::cout << " THREAD : " << idxThread << " :::: " << " PA : " ;
-				trainerPA(GCSGD);				
+				trainerPA(GCSGD);
 				this->mPAupdate.unlock();
 			
 				this->mFAupdate.lock();
-				std::cout << " THREAD : " << idxThread << " :::: " << " PA : " ;
+				std::cout << " THREAD : " << idxThread << " :::: " << " FA : " ;
 				trainerFA(GCSGD);
+				
+				for(int t=this->nbrThread;t--;)
+				{
+					if( t != idxThread)
+					{
+						this->NNupdateRequirement[t] = true;
+					}
+				}
+				
 				this->mFAupdate.unlock();
 			
 			
@@ -1469,6 +1523,131 @@ class DDPGA3C
 				iteration--;
 			}
 
+		}
+		
+	} 
+	
+	
+	
+	void runThreadEpisode()
+	{
+		mInit.lock();
+		this->nbrThread++;
+		int idxThread = this->nbrThread;
+		this->NNupdateRequirement.push_back(false);
+		this->mXPrefresh.push_back( new std::mutex() );
+		mInit.unlock();
+		
+		NNTrainer<float> trainerPA( ((QPANN<float>*)this->pa)->getNetPointer());
+		NNTrainer<float> trainerFA( ((QFANN<float>*)this->fa)->getNetPointer());
+		
+		//CARTPOLE :
+		SimulatorRKCARTPOLE envt(5.0f);
+		
+		for(int i=0;i<=nbrIteration;i++)
+		{
+			envt.initialize(false);	//random initial state or predefined...
+			
+		    unsigned int iteration = 0;
+			while( !envt.isTerminal() )
+			{
+				clock_t time = clock();
+		
+				Mat<float> S(envt.getCurrentState() );
+				//Mat<float> A(this->pa->estimateAction(S));
+				Mat<float> A(this->pa->eps_greedy(S));
+				Mat<float> R(envt.executeAction(A));
+				Mat<float> S1(envt.getCurrentState());
+			
+				//NN UPDATE :
+				//TODO:estimate the need of a mutex or not ?
+				if(this->NNupdateRequirement[idxThread-1])
+				{
+					trainerPA.updateToward( ((QPANN<float>*)this->pa)->getNetPointer(), 1.0f );
+					trainerFA.updateToward( ((QFANN<float>*)this->fa)->getNetPointer(), 1.0f );
+					this->NNupdateRequirement[idxThread-1] = false;
+				}
+					
+										
+					//METHOD DDPG :
+					/*
+					Mat<float> bankAfromS1( this->pa->estimateAction(S1) ); 
+					Mat<float> bankQs1a1(  this->fa->getQvalue(bankXP[idx].S1, bankAfromS1) );
+					Mat<float> bankQsa( this->fa->getQvalue(bankXP[idx].S,bankXP[idx].A) );
+					this->fa->updateDelta(operatorC(bankXP[idx].S,bankXP[idx].A), bankXP[idx].R+gamma*bankQs1a1-bankQsa );
+					*/
+				
+					//METHOD DDPG or DSPG: fixed target :
+					Mat<float> AfromS1TARGET( this->targetPA->estimateAction(S1) ); 
+					Mat<float> Qs1a1TARGET(  this->targetFA->getQvalue(S1, AfromS1TARGET) );
+					Mat<float> Qsa( this->fa->getQvalue(S,A) );
+					Mat<float> error(R+gamma*Qs1a1TARGET-Qsa);
+					//this->fa->updateDeltaBATCH(operatorC(bankXP[idx].S,bankXP[idx].A), (-1.0f)*bankerror, batchSize );
+					trainerFA.accumulateGradient( operatorC(S,A), (-1.0f)*error);
+				
+				
+					//POLICY GRADIENT : METHOD 4: TD 0 ACtor Critic
+					/*
+					Mat<float> bankdelta( bankXP[idx].R+gamma*bankQs1a1 - bankQsa);				
+					Mat<float> bankdlogpa( inverseM(bankXP[idx].A) );
+					this->pa->updateDelta(bankXP[idx].S, bankdlogpa*bankdelta);
+					*/
+					
+					//POLICY GRADIENT : METHOD DDPG : fixed target : idem for the policy...
+					
+					//this->fa->getQvalue( bankXP[idx].S, this->pa->estimateAction(bankXP[idx].S) ); 
+					Mat<float> input( operatorC( S, this->pa->estimateAction(S) ) );
+					Mat<float> dQda( this->fa->getNetPointer()->getGradientWRTinput( &input ) );
+					Mat<float> satoa( 0.0f, dQda.getColumn(), A.getColumn() );
+					for(int k=1;k<=A.getColumn();k++)	satoa.set( 1.0f, S.getLine()+k, k);
+					dQda = dQda * satoa;
+					//if(i==0)	std::cout << " DELTA Q da : " << bankdQda.get(1,1) << std::endl;
+					//this->pa->updateDeltaBATCH(bankXP[idx].S, (-1.0f/nbrReplay) * bankdQda, batchSize);
+					//this->pa->updateDeltaBATCH(bankXP[idx].S, (1.0f/nbrReplay) * bankdQda, batchSize);
+					trainerPA.accumulateGradient( S, dQda);
+					
+				
+					//POLICY GRADIENT : METHOD 6: TD 0 ACtor Critic : DSPG+fixed target
+					/*
+					Mat<float> bankdelta( bankXP[idx].R+gamma*bankQs1a1TARGET - bankQsa);				
+					Mat<float> bankdlogpa( inverseM(bankXP[idx].A) );
+					//TODO : this is not stochastic : not a probability...
+					//this->pa->updateDeltaBATCH(bankXP[idx].S, (-1.0f/nbrReplay)*(bankdlogpa*bankdelta), batchSize);
+					trainerPA.accumulateGradient(bankXP[idx].S, (-1.0f/nbrReplay)*(bankdlogpa*bankdelta));
+					*/
+
+
+
+				//UPDATE of the real network :
+				this->mPAupdate.lock();
+				//std::cout << " THREAD : " << idxThread << " :::: " << " PA : " ;
+				trainerPA(GCSGD);
+				this->mPAupdate.unlock();
+			
+				this->mFAupdate.lock();
+				//std::cout << " THREAD : " << idxThread << " :::: " << " FA : " ;
+				trainerFA(GCSGD);
+				
+				for(int t=this->nbrThread;t--;)
+				{
+					if( t != idxThread)
+					{
+						this->NNupdateRequirement[t] = true;
+					}
+				}
+				
+				this->mFAupdate.unlock();
+			
+			
+				//SOFT UPDATE TARGET TO REAL NETWORK :
+				if( iteration % freqUpdate == 0)
+				{
+					this->mSOFTupdate.lock();
+					std::cout << " THREAD : " << idxThread << " :::: SOFT UPDATE : " ;
+					this->updateTARGET();
+					this->mSOFTupdate.unlock();
+				}
+			}					
 		}
 		
 	} 

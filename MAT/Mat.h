@@ -142,6 +142,25 @@ bool isnanM(Mat<T> m)
 }
 
 template<typename T>
+Mat<T> NANregularize(const Mat<T>& m)
+{
+	Mat<T> r(m);
+	for(size_t i=1;i<=r.getLine();i++)
+	{
+		for(size_t j=1;j<=r.getColumn();j++)
+		{
+			if( isnan( r.get(i,j) ) )
+			{
+				r.set( (T)0, i,j);
+			}
+		}
+	}
+	
+	return r;
+}
+
+
+template<typename T>
 void regularizeNanM(Mat<T>* m);
 template<typename T>
 bool operator==(const Mat<T>& a, const Mat<T>& b);
@@ -159,6 +178,8 @@ template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> operator*=(Mat<T>& a, const Mat<T>& b);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> product(Mat<T>* a, Mat<T>* b);
+template<typename T>	/*pas de point virgule en fin de ligne...*/
+Mat<T> productNONEEDTRANSPOSE(Mat<T>* a, Mat<T>* b);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 inline Mat<T> operator*(const T& v, const Mat<T>& a);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
@@ -726,8 +747,14 @@ Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
 
     if( a.getLine() == b.getLine() && a.getColumn() == b.getColumn())
     {
+    	
     	Mat<T> aa(a),bb(b);
 		return product(&aa,&bb);
+		
+		/*
+		Mat<T> aa(a),bb(transpose(b));
+		return productNONEEDTRANSPOSE(&aa,&bb);
+		*/
     }
     else
     {
@@ -853,6 +880,38 @@ Mat<T> product(Mat<T>* a, Mat<T>* b)
     }
 	
     transpose(b);
+
+    return r;
+}
+
+template<typename T>	/*pas de point virgule en fin de ligne...*/
+Mat<T> productNONEEDTRANSPOSE(Mat<T>* a, Mat<T>* b)
+{
+
+    if(a->getColumn() != b->getLine())
+    {
+        cerr << "Impossible d'operer la multiplication : mauvais formats de matrices.\n" << endl;
+        cerr << "Format m1 : " << a->getLine() << " x " << a->getColumn() << "\t Fromat m2 : " << b->getLine() << " x " << b->getColumn() << endl;
+        return Mat<T>(1,1);
+    }
+
+    Mat<T> r( a->getLine(), b->getLine());
+
+    for(int i=r.getLine();i--;)
+    {
+        for(int j=r.getColumn();j--;)
+        {
+            T temp = (T)0;
+            for(int k=a->getColumn();k--;)
+            {
+                //cout << "i=" << i << " j=" << j << " k=" << k << endl;
+	        temp += a->mat[i][k]*b->mat[j][k];
+                //temp += a->get(i+1,k+1)*b->get(j+1,k+1);
+            }
+
+            r.set( temp, i+1, j+1);
+        }
+    }
 
     return r;
 }

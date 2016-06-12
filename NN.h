@@ -14,8 +14,8 @@
 #include "RAND/rand.h"
 #include "RunningStats/RunningStats.h"
 
-#define DECAY 5e-1f
-#define LEARNINGRATE 1e-2f
+#define DECAY 9e-1f
+#define LEARNINGRATE 1e-1f
 
 //#define sgd_use
 
@@ -505,6 +505,7 @@ class Connection
 		this->lastDeltaW = deltaW;
 		//W -= Mat<float>( lr * (dW+decay* extract(W,1,1,dW.getLine(),dW.getColumn()) ), (float)0, 1,1, dW.getLine(), dW.getColumn()+1);
 		//W -= Mat<float>( lr * (errorOut), (float)0, 1,dW.getColumn()+1, dW.getLine(), dW.getColumn()+1);
+		NANregularizeWeights();
 		
 	}
 	
@@ -575,6 +576,7 @@ class Connection
 			this->net->rsNN.tadd( std::string("NORME dW : connection : ")+std::to_string(idxConnection), norme2(this->batchDeltaW) );			
 			this->batchDeltaW *= 0.0f;
 			this->batchCounter = 0;
+			NANregularizeWeights();
 		}
 	}
 	
@@ -582,7 +584,7 @@ class Connection
 	{
 		if(grad.getLine() == this->W.getLine() && grad.getColumn() == this->W.getColumn())
 		{
-			this->W += grad;
+			this->W += NANregularize(grad);
 		}
 		else
 		{
@@ -659,6 +661,20 @@ class Connection
 		
 		
 		myfile.close();
+	}
+	
+	void NANregularizeWeights()
+	{
+		for(size_t i=1;i<=W.getLine();i++)
+		{
+			for(size_t j=1;j<=W.getColumn();j++)
+			{
+				if( isnan( W.get(i,j) ) )
+				{
+					W.set( (T)0, i,j);
+				}
+			}
+		}
 	}
 	
 	private :
@@ -1797,9 +1813,15 @@ class NNTrainer : public NN<T>
 		for(int i=this->numLayer;i--;)
 		{
 			deltas[i] = this->m_layers[i]->backProp( deltas[i+1]);
+			
+			if(isnanM(deltas[i]))
+				throw;
+				
 			if( i< this->numLayer-1)
 			{
 				dWs[i].push_back( this->m_layers[i]->getDeltaWeight() );
+				if( isnanM(dWs[i][dWs[i].size()-1]) )
+					regularizeNanM( &(dWs[i][dWs[i].size()-1]) );
 			}
 		}
 		
@@ -1863,8 +1885,8 @@ class NNTrainer : public NN<T>
 				case GCSGDMomentum :
 				{
 					//SGD Momentum :
-					float momentum = 0.9f;
-					ConnGrad[i] = momentum*lastGrad;
+					float momentumMAJ = 0.9f;
+					ConnGrad[i] = momentumMAJ*lastGrad;
 					
 					Mat<float> sgd(dWs[i][0]);
 					for(int j=dWs[i].size();j--;)
@@ -1886,7 +1908,7 @@ class NNTrainer : public NN<T>
 							}
 						}
 						
-						ConnGrad[i] += (1.0f-momentum) * ( sgd % dWs[i][j] );
+						ConnGrad[i] += (1.0f-momentumMAJ) * ( sgd % dWs[i][j] );
 					}
 				}
 				break;
@@ -1913,6 +1935,7 @@ class NNTrainer : public NN<T>
 		for(int i=this->numLayer-1;i--;)
 		{
 			this->m_layers[i]->applyGradient( ConnGrad[i] );
+			//std::cout << " NORM GRAD : " << i << " :: " << norme2(ConnGrad[i]) << std::endl;
 		}
 		
 		//let us update the real net :

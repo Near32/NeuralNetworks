@@ -38,10 +38,10 @@ EQUALS = =
 CMAKE_EDIT_COMMAND = /usr/bin/ccmake
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use
+CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build
+CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/depend.make
@@ -54,17 +54,17 @@ include CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/flags.make
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o: CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/flags.make
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o: ../actorcriticuse.cpp
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build/CMakeFiles $(CMAKE_PROGRESS_1)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles $(CMAKE_PROGRESS_1)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building CXX object CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o -c /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/actorcriticuse.cpp
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o -c /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/actorcriticuse.cpp > CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.i
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp > CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.i
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/actorcriticuse.cpp -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.s
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.s
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o.requires:
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/actorcriticuse.cpp.o.requires
@@ -100,6 +100,6 @@ CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/clean:
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/clean
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/depend:
-	cd /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build/CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/depend
 

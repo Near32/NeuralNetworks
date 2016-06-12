@@ -267,7 +267,7 @@ class QPANN : public PA<T>
 		{
 			//random :
 			Mat<float> ret(this->dimActionSpace,1);
-			float amount = 1e-1f;	//10% of exploration...
+			float amount = 1e-2f;	//1% of exploration...
 			
 			for(int i=1;i<=this->dimActionSpace;i++)
 			{
@@ -311,6 +311,11 @@ class QPANN : public PA<T>
 			for(int j=1;j<=r.getColumn();j++)
 			{
 				T val = r.get(i,j);
+				if(isnan(val))
+				{
+					val = 0.0f;
+				}
+				
 				if( fabs_(val) > maxOutput)
 				{
 					r.set( (val/fabs_(val))*maxOutput, i,j);

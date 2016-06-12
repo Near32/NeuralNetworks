@@ -50,10 +50,10 @@ EQUALS = =
 CMAKE_EDIT_COMMAND = /usr/bin/ccmake
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use
+CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build
+CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
 
 #=============================================================================
 # Target rules for target CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir
@@ -62,7 +62,7 @@ CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/us
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/all:
 	$(MAKE) -f CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/build.make CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/depend
 	$(MAKE) -f CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/build.make CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/build
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build/CMakeFiles  1
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles  1
 	@echo "Built target RLFRAMEWORKCARTPOLEActorCriticUse"
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/all
 
@@ -72,9 +72,9 @@ all: CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build/CMakeFiles 1
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 1
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 0
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUse.dir/rule
 
 # Convenience name for target.

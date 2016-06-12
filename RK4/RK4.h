@@ -58,7 +58,8 @@ class RK4
        this->stateVector = initState;
        //this->plotter.add(this->stateVector);
        //this->recording.push_back( this->stateVector);
-       this->printState();
+       
+       //this->printState();
        
        Mat<float> velocity(1,1);
        

@@ -58,7 +58,8 @@ class RK4
        this->stateVector = initState;
        //this->plotter.add(this->stateVector);
        //this->recording.push_back( this->stateVector);
-       this->printState();
+       
+       //this->printState();
        
        Mat<float> velocity(1,1);
        
@@ -230,16 +231,6 @@ Mat<float> CARTPOLEUPDATE(const Mat<float>& state, void* obj)
 	float F = state.get(5,1);
 	float thetadot = state.get(4,1);
 	float theta = state.get(2,1);
-	int qtheta = theta/PI;
-	if(theta>0)
-	{
-	
-	}
-	else
-	{
-	
-	}
-	
 	while( theta > 2*PI)
 	{
 		theta-=2*PI;

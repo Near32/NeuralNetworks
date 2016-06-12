@@ -478,7 +478,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
         	initTheta += 2*PI;
         }
         
-        std::cout << " ENVIRONMENT :: " << " THETA INIT = " << initTheta << std::endl;
+        //std::cout << " ENVIRONMENT :: " << " THETA INIT = " << initTheta << std::endl;
         
 		this->initState = Mat<float>(0.0f,4,1);
 		this->initState.set( initTheta, 2,1);
@@ -491,8 +491,8 @@ class SimulatorRKCARTPOLE : public Environment<float>
 		//----------------------------------------------
 		
         this->SIMstate = operatorC(this->initState,Mat<float>(0.0f,1,1) );
-        this->SIMstate.afficher();
-        this->state.afficher();
+        //this->SIMstate.afficher();
+        //this->state.afficher();
         
         
         //let us initialize the solver :
@@ -564,7 +564,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
 			
 		}
 		
-		this->reward *= 1e-1f;
+		this->reward *= 1e0f/2.0f;
 		//--------------------------------
 			
 		

@@ -465,8 +465,10 @@ class SimulatorRKCARTPOLE : public Environment<float>
     	//let us build the current stateVector :
         //FORMAT : 4 x nbrRobots
         //TODO : compute the random initialization state :
-        //float initTheta = ( ((float)(-rand()%100))+((float)(rand()%100)) )/PI;
         float initTheta = 0.0f;
+        if(random)
+        	initTheta = ( ((float)(-rand()%100))+((float)(rand()%100)) )/PI;
+        
         while( initTheta > 2*PI)
         {
         	initTheta -= 2*PI;
@@ -476,7 +478,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
         	initTheta += 2*PI;
         }
         
-        std::cout << " ENVIRONMENT :: " << " THETA INIT = " << initTheta << std::endl;
+        //std::cout << " ENVIRONMENT :: " << " THETA INIT = " << initTheta << std::endl;
         
 		this->initState = Mat<float>(0.0f,4,1);
 		this->initState.set( initTheta, 2,1);
@@ -489,8 +491,8 @@ class SimulatorRKCARTPOLE : public Environment<float>
 		//----------------------------------------------
 		
         this->SIMstate = operatorC(this->initState,Mat<float>(0.0f,1,1) );
-        this->SIMstate.afficher();
-        this->state.afficher();
+        //this->SIMstate.afficher();
+        //this->state.afficher();
         
         
         //let us initialize the solver :
@@ -562,7 +564,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
 			
 		}
 		
-		this->reward *= 1e-1f;
+		this->reward *= 1e0f/2;
 		//--------------------------------
 			
 		
