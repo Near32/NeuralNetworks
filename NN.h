@@ -196,6 +196,7 @@ std::vector<std::string> parseString(const std::string& line, char delim)
 typedef struct CLType
 {
 	CLTNORMAL,
+	CLTINPUT,
 	CLTCONV,
 	CLTPOOL,
 	CLTRELU
@@ -205,10 +206,18 @@ class convLayerTopoInfo
 {
 	public :
 	
-	convLayerTopoInfo(const CLType& cltype_=CLTCONV, const unsigned int& hi=28, const unsigned int& wi=28, const unsigned int& di=1, const unsigned int& hf=3, const unsigned int& wf=3, const unsigned int& df=1, const unsigned int& nbrf=32, const unsigned int& str=0, const unsigned int& p=0) : cltype(cltype_), Winput(wi),Hinput(hi), Dinput(di), Wfilter(wf),Hfilter(hf), Dfilter(df), nbrFilter(nbrf),Stride(str),Pad(p)
+	convLayerTopoInfo(const CLType& cltype_=CLTCONV, const unsigned int& hi=28, const unsigned int& wi=28, const unsigned int& di=1, const unsigned int& hf=3, const unsigned int& wf=3, const unsigned int& df=1, const unsigned int& nbrf=32, const unsigned int& str=1, const unsigned int& p=0) : cltype(cltype_), Winput(wi),Hinput(hi), Dinput(di), Wfilter(wf),Hfilter(hf), Dfilter(df), nbrFilter(nbrf),Stride(str),Pad(p)
 	{
 		switch(cltype)
 		{
+			case CLTINPUT :
+			{
+				this->Woutput = this->Winput;
+				this->Houtput = this->Hinput;
+				this->Doutput = this->Dinput;
+			}
+			break;
+			
 			case CLTCONV:
 			{
 				this->Woutput = 1+ (Winput + 2*Pad - Wfilter)/Stride;
@@ -231,6 +240,10 @@ class convLayerTopoInfo
 				this->Houtput = this->Hinput;
 				this->Doutput = this->Dinput;
 			}
+			break;
+			
+			default:
+			//CLTNORMAL? nothing to do : it is not a convolutionnal layer.
 			break;
 		}
 	}
@@ -1334,8 +1347,37 @@ class Layer2 : public Layer<T>
 	private :
 	
 	convLayerTopoInfo clti;
+	Mat<Mat<T> > POOLmaxIDX;
+
 	
 	public :
+	
+	static Mat<T> max(const Mat<T> m)
+	{
+		Mat<T> ret(m(1,1,1),1,4);
+		ret(1,2) = 1; 	//line
+		ret(1,3) = 1;	//column
+		ret(1,4) = 1;	//depth
+		
+		for(int k=1;k<=m.getDepth();k++)
+		{
+			for(int i=1;i<=m.getLine();i++)
+			{
+				for(int j=1;j<=m.getColumn();j++)
+				{
+					if( ret(1,1) < m(i,j,k))
+					{
+						ret(1,1) = m(i,j,k);
+						ret(1,2) = i;
+						ret(1,3) = j;
+						ret(1,4) = k;
+					}
+				}
+			}
+		}
+		
+		return ret;
+	}
 	
 	Layer2(NN<T>* net_, const LAYERTYPE& ltype_, const NEURONTYPE& ntype_, const unsigned int& nbrNeurons_, unsigned int idxLayer_,convLayerTopoInfo clti_ = clti_NORMAL ) : Layer<T>(net_,ltype_,ntype_, nbrNeurons_, idxLayer_,true), clti(clit_)
 	{
@@ -1397,6 +1439,30 @@ class Layer2 : public Layer<T>
 			
 						case LTINPUT :
 						{
+							
+							if(this->inputs.getColumn() != 1)
+							{
+								//let us go from a convolutionnal layer to a fully connected layer :
+								unsigned int l = this->inputs.getLine();
+								unsigned int c = this->inputs.getColumn();
+								unsigned int d = this->inputs.getDepth();
+								Mat<T> temp( l*c*d, 1, 1);
+								int idx = 1;
+								for(int k=1;k<=d;k++)
+								{
+									for(int j=1;j<=c;j++)
+									{
+										for(int i=1;i<=l;i++)
+										{
+											temp(idx,1,1) = inputs(i,j,k);
+											idx++; 
+										}
+									}
+								}
+								
+								this->inputs = temp;
+							}
+							
 							this->activations = this->inputs;
 						}
 						break;
@@ -1445,6 +1511,67 @@ class Layer2 : public Layer<T>
 		else
 		{
 			//TODO : handle conv relu pool in clti.cltype...
+			switch(this->clti.CLType)
+			{
+				case CLTPOOL :
+				{
+					unsigned int Ho = this->clti.Houtput;
+					unsigned int Wo = this->clti.Woutput;
+					unsigned int Do = this->clti.Doutput;
+					unsigned int S = this->clti.Stride;
+					
+					this->activations = Mat<T>(Ho,Wo,Do);
+					for(int k=1;k<=Do;k++)
+					{
+						for(int i=1;i<=Ho;i++)
+						{
+							for(int j=1;j<=Wo;j++)
+							{
+								this->POOLmaxIDX(i,j,k) = max( extract( this->inputs, (i-1)*S+1, (j-1)*S+1, c, (i-1)*S+1, (j-1)*S+1, c ) ) ;
+								this->activations(i,j,k) = POOLmaxIDX(i,j,k)(1,1);
+							}
+						}
+					}
+					
+					this->outputs = this->activations;
+				}
+				break;
+				
+				case CLTRELU :
+				{
+					this->activations = this->inputs;
+					
+					this->outputs = ReLUM(this->activations);	
+				}
+				break;
+				
+				case CLTINPUT :
+				{
+					this->activations = this->inputs;
+					
+					this->outputs = this->activations;	
+				}
+				break;
+				
+				case CLTCONV :
+				{
+					unsigned int Ho = this->clti.Houtput;
+					unsigned int Wo = this->clti.Woutput;
+					unsigned int Do = this->clti.Doutput;
+					unsigned int S = this->clti.Stride;
+					
+					this->activations = padding(this->input,this->clti.Pad);
+					Mat<T> W(this->inConnection->getWeights());
+					Mat<T> b(this->inConnection->getBias());
+
+					this->outputs = Mat<T>(Ho,Wo,Do);
+					
+					computeConv(outputs,activations,W,b,S);
+					
+					
+				}
+				break;
+			}
 		}
 		
 		if(this->net->learning)
@@ -1493,6 +1620,59 @@ class Layer2 : public Layer<T>
 		return this->outputs;
 	}
 	
+	Mat<T> padding( const Mat<T>& m, const unsigned int P)
+	{
+		Mat<T> r((T)0,m.getLine()+P*2,m.getColumn()+P*2, m.getDepth());
+		
+		for(int k=1;k<=m.getDepth();k++)
+		{
+			for(int i=1;i<=m.getLine();i++)
+			{
+				for(int j=1;j<=m.getColumn();j++)
+				{
+					r(i+P,j+P,k) = m(i,j,k);
+				}
+			}
+		}
+		
+		return r;
+	}
+	void computeConv(Mat<T>& outputs, const Mat<T>& activations, const Mat<T>& W, const Mat<T>& b, const unsigned int& S)
+	{
+		//each filter can be found along the depth indexes : so at each depth, the filter for the channels are stacked along the lines.
+		unsigned int Ffilter = W.getColumn();
+		unsigned int HW = W.getLine();
+		unsigned int nbrChannel = HW/Ffilter;
+		//assuming that filter are square !!!!
+		unsigned int nbrFilter = W.getDepth();
+		
+		std::vector<Mat<T> > Ws;
+		for(int i=1;i<=nbrChannel;i++)	Ws.push_back( extract(W, (i-1)*Ffilter+1, 1,1, i*Ffilter, Ffilter, nbrFilter) );
+		
+		for(int k=1;k<=outputs.getDepth();k++)
+		{
+			for(int i=1;i<=outputs.getLine();i++)
+			{
+				for(int j=1;j<=outputs.getColumn();j++)
+				{
+					T sum = b(1,1,k);
+					
+					for(int kk=1;kk<=activations.getDepth();kk++)
+					{
+						for(int ii=1;ii<=Ffilter;ii++)
+						{
+							for(int jj=1;jj<=Ffilter;jj++)
+							{
+								sum += Ws[kk](ii,jj,k)*activations(ii+(i-1)*S,jj+(j-1)*S, kk); 
+							}
+						}
+					}
+					
+					outputs(i,j,k) = sum;
+				}
+			}
+		}
+	}
 	
 	virtual Mat<T> backProp(const Mat<T>& errorPrev_)	override
 	{
@@ -1759,6 +1939,7 @@ class NN
 		for(int i=0;i<numLayer;i++)
 		{
 			outputs = m_layers[i]->feedForward(outputs);
+			if(m_layers[i]->
 			outputs = operatorC(outputs, Mat<T>((T)1,1,outputs.getColumn()) );
 		}
 		
