@@ -1,3 +1,0 @@
-#!/bin/bash
-
-g++-4.7 $1.cpp -g -lopencv_core -lopencv_highgui -lopencv_features2d -lopencv_calib3d -lopencv_legacy -lopencv_imgproc -lGL -lX11 -lXxf86vm -o testMNISTload -std=c++11

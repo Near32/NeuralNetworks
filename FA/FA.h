@@ -2,8 +2,9 @@
 #define FA_H
 
 /*Function Approximator Interface */
-#include "../MAT/Mat.h"
-#include "../ONSCNewton/ONSCNewton.h"
+//#include "../MAT/Mat.h"
+#include "../MAT/Mat2.h"
+//#include "../ONSCNewton/ONSCNewton.h"
 #include "../NN.h"
 #include <mutex>
 
@@ -87,6 +88,7 @@ class QFANN : public FA<T>
 	std::string filepathRSNN;
 	
 	bool normalization;
+	bool VvaluesOnly;
 	
 	//------------------------------------
 	//------------------------------------
@@ -99,6 +101,8 @@ class QFANN : public FA<T>
 		srand(time(NULL));
 		
 		this->dimStateSpace = topo.getNeuronNumOnLayer(0)-this->dimActionSpace;
+		
+		this->VvaluesOnly=false;
 	}
 	
 	//load from a file :
@@ -108,6 +112,8 @@ class QFANN : public FA<T>
 		srand(time(NULL));
 		
 		this->dimStateSpace = this->net->topology.getNeuronNumOnLayer(0)-this->dimActionSpace;
+		
+		this->VvaluesOnly=false;
 	}
 	
 	~QFANN()
@@ -126,7 +132,15 @@ class QFANN : public FA<T>
 	virtual Mat<T> estimate(const Mat<T>& S, const Mat<T>& A)	override
 	{
 		this->mutexFA.lock();
-		this->Qsa = this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) ) ;
+		
+		if( !this->VvaluesOnly)
+		{
+			this->Qsa = this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) ) ;
+		}
+		else
+		{
+			this->Qsa = this->net->feedForward( (normalization? normalize( S ) : S ) ) ;
+		}
 		
 		this->mutexFA.unlock();
 		return this->Qsa;
@@ -148,7 +162,8 @@ class QFANN : public FA<T>
 		
 		//this->net->learning = true;
 		this->net->learning = false;
-		this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
+		//this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
+		this->estimate(S,A);
 		this->net->backProp( Qtarget );
 		this->net->learning = false;
 		
@@ -172,7 +187,8 @@ class QFANN : public FA<T>
 		
 		//this->net->learning = true;
 		this->net->learning = false;
-		this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
+		//this->net->feedForward( (normalization? normalize( operatorC(S,A) ) : operatorC(S,A) ) );
+		this->estimate(S,A);
 		this->net->backPropBATCH( Qtarget, batchSize );
 		this->net->learning = false;
 		
@@ -324,7 +340,8 @@ class QFANN : public FA<T>
 	
 	virtual Mat<T> getQvalue( const Mat<T>& S, const Mat<T>& A) override
 	{
-		return this->net->feedForward( (normalization? normalize(operatorC(S,A)) : operatorC(S,A) ) );
+		//return this->net->feedForward( (normalization? normalize(operatorC(S,A)) : operatorC(S,A) ) );
+		return this->estimate(S,A);
 	}
 	
 	virtual NN<T>* getNetPointer()	const	override

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd buildDiscrete
+make -j3
+
+

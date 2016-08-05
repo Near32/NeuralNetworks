@@ -2,9 +2,14 @@
 #define RK4_H
 
 
-#include "../MAT/Mat.h"
+//#include "../MAT/Mat.h"
+#include "../MAT/Mat2.h"
 #include <vector>
 #include "../RunningStats/RunningStats.h"
+
+
+class SimulatorRKCARTPOLE;
+
 
 class RK4
 {
@@ -26,16 +31,21 @@ class RK4
     
     std::vector<Mat<float> > recording;
 	RunningStats<float>* rs;
+	int countRecord;
+	int idxThread;
 	
     public :
     
-    RK4(Mat<float> (*func_)(const Mat<float>&, void*), void* objUsed_) : func(func_)
+    RK4(Mat<float> (*func_)(const Mat<float>&, void*) = NULL, void* objUsed_ = NULL) : func(func_)
     {
         this->currentTime = 0;
         this->timeStep = 1e-2f;
         this->endTime = 1;
         
         this->objUsed = objUsed_;
+        
+        this->countRecord = 0;
+        this->idxThread = 0;
 		rs = new RunningStats<float>(std::string("datas"), 100 );
     }
     
@@ -44,11 +54,22 @@ class RK4
     	delete rs;
     }
     
-    void initialize()
+    void initialize(int idxThread_= 0, bool write = false)
     {
     	this->currentTime = 0;
     	this->timeStep = 1e-2f;
     	this->endTime = 1;
+
+		this->countRecord++;
+		this->idxThread = idxThread_;
+		
+		if(write)
+		{
+    		writeInFile(std::string("./DATAS/DATA_EPISODE_RK_")+std::to_string(this->countRecord)+std::string(".txt")+std::to_string(this->idxThread), this->recording );
+    	}
+    	
+    	this->recording.clear();
+
     }
     
     Mat<float> solve(const Mat<float>& initState, const float& timeStep_, const float& endTime_)
@@ -57,7 +78,7 @@ class RK4
        this->endTime = endTime_;
        this->stateVector = initState;
        //this->plotter.add(this->stateVector);
-       //this->recording.push_back( this->stateVector);
+       this->recording.push_back( transpose(this->stateVector));
        
        //this->printState();
        
@@ -77,7 +98,7 @@ class RK4
            
            this->stateVector += velocity;
            
-           this->recording.push_back( this->stateVector);
+           this->recording.push_back( transpose(this->stateVector) );
            //this->plotter.add(this->stateVector);
            
            this->currentTime = this->currentTime + this->timeStep;
@@ -107,6 +128,63 @@ class RK4
 			rs->tadd( -1-j*10, stateVector.get(1,j)*cos(stateVector.get(4,j) ) );
 			rs->tadd( -2-j*10, stateVector.get(1,j)*sin(stateVector.get(4,j) ) );
 		}
+    }
+    
+};
+
+class RK42 : public RK4
+{
+	protected :
+	Mat<float> (*func2)(const Mat<float>&,Mat<float>&, void*);
+	
+	public :
+	
+	
+	RK42(Mat<float> (*func2_)(const Mat<float>&,Mat<float>&, void*), void* objUsed_) : RK4(),func2(func2_)
+    {
+
+    }
+    
+    ~RK42()
+    {
+    
+    }
+    
+	Mat<float> solve(const Mat<float>& initState, const float& timeStep_, const float& endTime_)
+    {
+       this->timeStep = timeStep_;
+       this->endTime = endTime_;
+       this->stateVector = initState;
+       //this->plotter.add(this->stateVector);
+       this->recording.push_back( transpose(this->stateVector));
+       
+       //this->printState();
+       
+       Mat<float> velocity(1,1);
+       
+       while(this->currentTime < this->endTime)
+       {
+           this->stateVector = this->func2(this->stateVector,this->an,this->objUsed);
+           this->func2(this->stateVector+(this->timeStep/2.0f)*this->an, this->bn,this->objUsed);
+           this->func2(this->stateVector+(this->timeStep/2.0f)*this->bn, this->cn,this->objUsed);
+           this->func2(this->stateVector+this->timeStep*this->cn, this->dn, this->objUsed);
+           
+           velocity = (this->timeStep/6.0f)*(this->an+2.0f*this->bn+2.0f*this->cn+this->dn) ;
+
+           //regularizeNanM( &velocity);
+           regularizeNanInfM( &velocity);
+           
+           this->stateVector += velocity;
+           //this->stateVector = this->func2(this->stateVector,this->an,this->objUsed);
+           
+           this->recording.push_back( transpose(this->stateVector) );
+           //this->plotter.add(this->stateVector);
+           
+           this->currentTime = this->currentTime + this->timeStep;
+       }
+       
+		return this->stateVector;
+       
     }
     
 };
@@ -222,15 +300,22 @@ Mat<float> CARTPOLEUPDATE(const Mat<float>& state, void* obj)
 	% %		thetadot
 	% %		F
     */
+    Mat<float> dupstate(state);
     float eps = numeric_limits<float>::epsilon();
     Mat<float> nstateDot( 0.0f*state );
 	float m1 = 1.0f;
-	float m2 = 0.5f;
-	float l = 1.0f;
+	float m2 = 0.1f;
+	float l = 0.5f;
 	float g = -9.81f;
-	float F = state.get(5,1);
-	float thetadot = state.get(4,1);
-	float theta = state.get(2,1);
+	float F = dupstate.get(5,1);
+	float thetadot = dupstate.get(4,1);
+	float theta = dupstate.get(2,1);
+	if( !isfinite(theta))
+	{
+		theta = 0.0f;
+		dupstate.set( theta, 2,1);
+	}
+	
 	while( theta > 2*PI)
 	{
 		theta-=2*PI;
@@ -261,8 +346,8 @@ Mat<float> CARTPOLEUPDATE(const Mat<float>& state, void* obj)
 	
 	y = inv*y;	//xdotdot, thetadotdot
     
-    nstateDot.set( state.get(3,1), 1,1);
-    nstateDot.set( state.get(4,1), 2,1);
+    nstateDot.set( dupstate.get(3,1), 1,1);
+    nstateDot.set( dupstate.get(4,1), 2,1);
     nstateDot.set( y.get(1,1), 3,1);
     nstateDot.set( y.get(2,1), 4,1);
     nstateDot.set( 0.0f, 5,1);
@@ -270,6 +355,128 @@ Mat<float> CARTPOLEUPDATE(const Mat<float>& state, void* obj)
     return nstateDot;
 }
 
+
+
+Mat<float> KURAMOTOMODEL1(const Mat<float>& state, void* obj)
+{
+	/*% %     state :
+	% %     theta1 w1 K1
+	% %     theta2 w2 K2
+	% %     ...
+	% %		thetaN wN kN
+	% %		
+    */
+    int N = state.getLine();
+    Mat<float> dupstate(state);
+    float eps = numeric_limits<float>::epsilon();
+    Mat<float> nstateDot( 0.0f*state );
+	
+	//let us regularize the thetas and compute psi and r:
+	float psi = 0.0f;
+	Mat<float> repsi(0.0f,1,2);
+	
+	for(int i=1;i<=N;i++)
+	{
+		float theta = state.get(i,1);
+		
+		if( !isfinite(theta))
+		{
+			theta = 0.0f;
+		}
+	
+		while( theta > 2*PI)
+		{
+			theta-=2*PI;
+		}
+		while( theta < 0.0f)
+		{
+			theta += 2*PI;
+		}
+		
+		dupstate.set( theta, 2,1);		
+		
+		psi += theta/N;
+		float stheta = sin(theta);
+		float ctheta = cos(theta);
+		
+		repsi.set( repsi.get(1,1)+ctheta/N, 1,1);
+		repsi.set( repsi.get(1,2)+stheta/N, 1,2);
+	}
+    
+    float r = sqrt( pow(repsi.get(1,1),2)+pow(repsi.get(1,2),2) );
+    
+    for(int i=1;i<=N;i++)
+	{
+		float theta = dupstate.get(i,1);
+		float thetadot = state.get(i,2)+state.get(i,3)*r*sin(theta-psi);
+		
+		nstateDot.set( thetadot, i,1);		
+	}
+	
+    return nstateDot;
+}
+
+Mat<float> KURAMOTOMODEL1_RK42(const Mat<float>& state, Mat<float>& stateDot, void* obj)
+{
+	/*% %     state :
+	% %     theta1 w1 K1
+	% %     theta2 w2 K2
+	% %     ...
+	% %		thetaN wN kN
+	% %		
+    */
+    int N = state.getLine();
+    
+    Mat<float> dupstate(state);
+    float eps = numeric_limits<float>::epsilon();
+    Mat<float> nstateDot( 0.0f*state );
+	
+	//let us regularize the thetas and compute psi and r:
+	float psi = 0.0f;
+	Mat<float> repsi(0.0f,1,2);
+	
+	for(int i=1;i<=N;i++)
+	{
+		float theta = state.get(i,1);
+		
+		if( !isfinite(theta))
+		{
+			theta = 0.0f;
+		}
+	
+		while( theta > PI)
+		{
+			theta-=2*PI;
+		}
+		while( theta < -PI)
+		{
+			theta += 2*PI;
+		}
+		
+		dupstate.set( theta, i,1);		
+		
+		psi += theta/N;
+		float stheta = sin(theta);
+		float ctheta = cos(theta);
+		
+		repsi.set( repsi.get(1,1)+ctheta/N, 1,1);
+		repsi.set( repsi.get(1,2)+stheta/N, 1,2);
+	}
+    
+    float r = sqrt( pow(repsi.get(1,1),2)+pow(repsi.get(1,2),2) );
+    
+    for(int i=1;i<=N;i++)
+	{
+		float theta = dupstate.get(i,1);
+		float thetadot = state.get(i,2)+state.get(i,3)*r*sin(psi-theta);
+		
+		nstateDot.set( thetadot, i,1);		
+	}
+	
+	stateDot = nstateDot;
+	
+    return dupstate;
+}
 
 #endif
 

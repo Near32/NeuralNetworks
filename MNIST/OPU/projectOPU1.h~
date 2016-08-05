@@ -5,8 +5,10 @@
 #include "../../MAT/Mat.h"
 #include <mutex>
 #include <thread>
+#include "../../NN.h"
 
 //#define debug
+//#define VERBOSE1
 
 
 float computeDistance(const cv::Vec3f& c1, const cv::Vec3f& c2);
@@ -40,7 +42,9 @@ float computeDistance(const cv::Vec3f& c1, const cv::Vec3f& c2)
 //int computeAssociationsAndCOG(const cv::Mat& im, Mat<float>& finalAssoc, NN<float>* instanceNN, float tresholddist)
 int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* instanceNN, float tresholddist, bool erosion, bool dissect)
 {
-	cv::Mat src = im;
+	//cv::Mat src = im;
+	cv::Mat src;
+	im.copyTo(src);
 	cv::Mat imOriginal;
 	im.copyTo(imOriginal);
 //#ifdef debug	
@@ -61,8 +65,9 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 				
 
 	/// Reduce the noise so we avoid false circle detection
+	//cv::GaussianBlur( src, src, cv::Size(10, 10), 2, 2 );
 	cv::GaussianBlur( src, src, cv::Size(9, 9), 2, 2 );
-	//cv::GaussianBlur( src, src, cv::Size(9, 9), 2, 2 );
+	
 	
 	try
 	{
@@ -78,7 +83,7 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 
 	/// Apply the Hough Transform to find the circles
 	//cv::HoughCircles( src, circles, CV_HOUGH_GRADIENT, 1.2, 100);//, 200, 40, 0, 0 );
-	cv::HoughCircles( src, circles, CV_HOUGH_GRADIENT, 1, src.rows/32, 90, 23, 0, 30);
+	cv::HoughCircles( src, circles, CV_HOUGH_GRADIENT, 1, src.rows/32, 95, 25, 0, 30);
 	//cv::HoughCircles( src, circles, CV_HOUGH_GRADIENT, 1, src.rows/8, 200, 50, 30, 0);
 	
 	// Loop over all detected circles and outline them on the original image
@@ -91,9 +96,11 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 	 	{
 	 		cv::Point center(std::round(circles[current_circle][0]), std::round(circles[current_circle][1]));
 	 		int radius = std::round(circles[current_circle][2]);
-	 		
+
+#ifdef debug 		
 	 		std::cout << "RADIUS : " << radius << std::endl;
 	 		//std::cout << " Circle : " << current_circle << " : " << circles[current_circle][0] << " ; " << circles[current_circle][1] << std::endl;
+#endif
 	 		//if(radius > radiusMAX || radius < radiusMIN)
 	 		if( radius < radiusMIN)
 	 		{
@@ -107,13 +114,16 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 	 	}
 	 }
 	
-	//cv::imshow("IMAGE CIRCLES", im);
+	//cv::namedWindow("IMAGE CIRCLES");
+	//cv::imshow("IMAGE CIRCLES", src);
 	//afficher("IMAGES CIRCLES", &src, NULL,NULL,true,1.0f);
 	
 	
 	int nbrFeatures = circles.size();
+#ifdef VERBOSE1	
 	std::cout << " NBR CIRCLES : " << nbrFeatures << std::endl;
-	
+#endif
+
 	if( nbrFeatures%2 != 0)
 	{
 		//then there is a problem : because there ought to be 2 features per robot identifier...
@@ -158,16 +168,18 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 			association.set( idxMin, i,1);
 		}
 		else
-		{
+		{		
 			std::cout << " ERROR : DISTANCE TOO LARGE FOUND BETWEEN TWO DOTS THAT HAVE BEEN ASSOCIATED..." << std::endl;
-			dist.afficher();
+			dist.afficher();	
 			return -2;
 		}
 	}
 	
+#ifdef debug
 	std::cout << " ASSOC before reaching uniqueness : " << std::endl;
 	association.afficher();
 	dist.afficher();
+#endif	
 	//associations are not ready yet, we have to prevent ourselves from the case 
 	// where one point is associated to two or more :
 	for(int i=1;i<=association.getLine();i++)
@@ -206,10 +218,11 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 		}
 	}
 	
+#ifdef debug	
 	std::cout << " ASSOC after regularization on uniqueness : " << std::endl;
 	association.afficher();
 	dist.afficher();
-	
+#endif
 	
 	finalAssoc = Mat<float>(nbrFeatures/2,2);
 	int i = 1;
@@ -226,7 +239,9 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 			j++;
 			if(j>nbrFeatures)
 			{
+#ifdef VERBOSE1
 				std::cout << " NO ASSOCIATION found : we discard that feature : idxline = " << i  << std::endl;
+#endif				
 				//it is the kind of features that have been associated with 0 previously.
 				discard = true;
 				break;
@@ -333,12 +348,18 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 	*/
 	
 	//let us compute the rotation angles and the center of gravity :
+	Mat<float> pointsPositions(nbrFeatures/2,4);
 	Mat<float> thetas(nbrFeatures/2,1);
 	Mat<float> CoG(nbrFeatures/2,2);
 	for(int i=1;i<=nbrFeatures/2;i++)
 	{
 		int idxf1 =finalAssoc.get(i,1);
 		int idxf2 =finalAssoc.get(i,2);
+		
+		pointsPositions.set( circles[idxf1-1][0], i, 1);
+		pointsPositions.set( circles[idxf1-1][1], i, 2);
+		pointsPositions.set( circles[idxf2-1][0], i, 3);
+		pointsPositions.set( circles[idxf2-1][1], i, 4);
 		
 		float x = (circles[idxf1-1][0]+circles[idxf2-1][0]) / 2.0f;
 		float y = (circles[idxf1-1][1]+circles[idxf2-1][1]) / 2.0f;
@@ -366,9 +387,11 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 	Mat<float> number(finalAssoc.getLine(),1);
 	Mat<float> confidence(finalAssoc.getLine(),1);
 	int size = 28;
-	float factor = 2.0f;
+	float factor = 2.5f;
 	//int coeff = 16;
-	int coeff = 2;
+	int coeff = 3;
+	int offsetx = 0;
+	int offsety = 0;
 	int upsize = size*coeff/factor;
 	Mat<float> kernel(1.0f/((float)(coeff*coeff)), coeff/factor,coeff/factor);
 	
@@ -376,8 +399,8 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 	{
 		Mat<float> point( transpose(extract( finalAssoc, i,3,i,4) ) );
 		Mat<float> origin(2,1);
-		origin.set( imOriginal.cols/2, 1,1);
-		origin.set( imOriginal.rows/2, 2,1);
+		origin.set( imOriginal.cols/2+offsetx, 1,1);
+		origin.set( imOriginal.rows/2+offsety, 2,1);
 		
 		cv::Mat tim = translate(imOriginal, (-1.0f)*(point-origin));
 		cv::Mat rim = rotate( tim, 90+finalAssoc.get(i,5)*180.0f/PI, origin);
@@ -389,7 +412,7 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 		rect.set( upsize, 2,1);		
 		
 		//In order to look more at the center of the patch, we make a little translation of one pixel in both x and y axises :
-		rect = operatorL(factor*(origin+Mat<float>(1.0f,2,1))-0.5f*rect,rect);
+		rect = operatorL(factor*(origin+Mat<float>(2.0f,2,1))-0.5f*rect,rect);
 		cv::Mat patch;
 		
 		try
@@ -426,8 +449,9 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 		Mat<float> inputIM( tresholding( patchmsubconv, 110.0f) );
 		
 		inputIM = extract( inputIM, 1,1, size,size);
+#ifdef VERBOSE1		
 		inputIM.afficher();
-		
+#endif
 		if(dissect)
 		{
 			//let us put a column of zeros between the dots and the digit :
@@ -487,14 +511,14 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 				
 			}
 			
-			
+#ifdef VERBOSE1			
 			std::cout << " >> AFTER DISSECTION : idx = ";
 			for(int i=0;i<idCol.size();i++)
 			{
 				std::cout  << idCol[i] << " " ;
 			}
 			std::cout << std::endl;
-			
+#endif	
 			inputIM.afficher();
 		}
 		
@@ -520,13 +544,17 @@ int computeAssociationsAndCOG(cv::Mat& im, Mat<float>& finalAssoc, NN<float>* in
 #endif		
 		int label = idmin( (-1.0f)*output ).get(1,1);
 		std::cout << " LABELED :: " << label-1 << " CONFIDENCE : " << output.get(label,1)*100 << " %." << std::endl;
+#ifdef debug		
 		number.afficher();
+#endif		
 		number.set( label-1, i,1);
 		confidence.set( output.get(label,1), i,1);
 	}
 	
 	finalAssoc = operatorL(finalAssoc, number);
 	finalAssoc = operatorL(finalAssoc, confidence);
+	
+	finalAssoc = operatorL(finalAssoc, pointsPositions);
 	
 	
 	
@@ -722,8 +750,14 @@ class sensorCAM
 	sensorCAM(float tresh_ = 500.0f, bool erosion_ = false, bool dissect_ = false, bool dilate_ = false) : continuer(true), trustable(false), assoc(Mat<float>(1,1)), tresholddist(tresh_), erosion(erosion), dissect(dissect_), dilate(dilate_)
 	{
 		//std::string filepath = "neuralnetworksDIGITROTATEDPI";
-		std::string filepath = "neuralnetworksDIGITROTATEDPI2";
+		
+		//BEST VERSION SO FAR :
+		//std::string filepath = "neuralnetworksDIGITROTATEDPI2";
+		
+		//std::string filepath = "neuralnetworksDIGITROTATEDPIDIGIT";
+		std::string filepath = "neuralnetworksDIGITROTATEDPIDIGITSTRAINER1";
 		//std::string filepath = "neuralnetworksDIGITROTATEDPI3";
+		
 		nn = new NN<float>(filepath);
 		nn->learning = false;
 	}
@@ -751,6 +785,8 @@ class sensorCAM
 				mutexRes.unlock();
 				
 				//let us deal with the current ims :
+				std::cout << " SENSOR CAM  :: " ;
+				std::cout << " in progress ... " << std::endl;
 				int res = this->wrapper(currentIm);
 				
 				this->trustableIm = this->currentIm;
@@ -783,6 +819,8 @@ class sensorCAM
 	{
 		mutexRes.lock();
 		this->ims.push_back(im);
+		std::cout << " SENSOR CAM  :: " ;
+		std::cout << " NEW FRAME. " << std::endl;
 		mutexRes.unlock();
 	}
 	
@@ -908,7 +946,7 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 	 		cv::Point center(std::round(circles[current_circle][0]), std::round(circles[current_circle][1]));
 	 		int radius = std::round(circles[current_circle][2]);
 	 		
-	 		std::cout << "RADIUS : " << radius << std::endl;
+	 		//std::cout << "RADIUS : " << radius << std::endl;
 	 		//std::cout << " Circle : " << current_circle << " : " << circles[current_circle][0] << " ; " << circles[current_circle][1] << std::endl;
 	 		//if(radius > radiusMAX || radius < radiusMIN)
 	 		if( radius < radiusMIN)
@@ -981,9 +1019,9 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 		}
 	}
 	
-	std::cout << " ASSOC before reaching uniqueness : " << std::endl;
-	association.afficher();
-	dist.afficher();
+	//std::cout << " ASSOC before reaching uniqueness : " << std::endl;
+	//association.afficher();
+	//dist.afficher();
 	//associations are not ready yet, we have to prevent ourselves from the case 
 	// where one point is associated to two or more :
 	for(int i=1;i<=association.getLine();i++)
@@ -1022,9 +1060,9 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 		}
 	}
 	
-	std::cout << " ASSOC after regularization on uniqueness : " << std::endl;
-	association.afficher();
-	dist.afficher();
+	//std::cout << " ASSOC after regularization on uniqueness : " << std::endl;
+	//association.afficher();
+	//dist.afficher();
 	
 	
 	finalAssoc = Mat<float>(nbrFeatures/2,2);
@@ -1096,12 +1134,20 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 	
 	
 	//let us compute the rotation angles and the center of gravity :
+	Mat<float> pointsPositions(nbrFeatures/2,4);
 	Mat<float> thetas(nbrFeatures/2,1);
 	Mat<float> CoG(nbrFeatures/2,2);
 	for(int i=1;i<=nbrFeatures/2;i++)
 	{
 		int idxf1 =finalAssoc.get(i,1);
 		int idxf2 =finalAssoc.get(i,2);
+		
+		
+		pointsPositions.set( circles[idxf1-1][0], i, 1);
+		pointsPositions.set( circles[idxf1-1][1], i, 2);
+		pointsPositions.set( circles[idxf2-1][0], i, 3);
+		pointsPositions.set( circles[idxf2-1][1], i, 4);
+		
 		
 		float x = (circles[idxf1-1][0]+circles[idxf2-1][0]) / 2.0f;
 		float y = (circles[idxf1-1][1]+circles[idxf2-1][1]) / 2.0f;
@@ -1199,7 +1245,7 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 		Mat<float> inputIM( tresholding( patchmsubconv, 110.0f) );
 		
 		inputIM = extract( inputIM, 1,1, size,size);
-		inputIM.afficher();
+		//inputIM.afficher();
 		
 		if(dissect)
 		{
@@ -1261,7 +1307,7 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 			}
 			
 			
-			std::cout << " >> AFTER DISSECTION : idx = ";
+			//std::cout << " >> AFTER DISSECTION : idx = ";
 			for(int i=0;i<idCol.size();i++)
 			{
 				std::cout  << idCol[i] << " " ;
@@ -1301,6 +1347,9 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 	finalAssoc = operatorL(finalAssoc, number);
 	finalAssoc = operatorL(finalAssoc, confidence);
 	
+	//nbrfeatures x 7+4
+	finalAssoc = operatorL(finalAssoc, pointsPositions);
+	
 	
 	
 //#ifdef debug
@@ -1310,6 +1359,16 @@ int computeAssociationsAndCOGDILATION(cv::Mat& im, Mat<float>& finalAssoc, NN<fl
 	return nbrFeatures;
 	
 }
+
+/*
+class FlowPrediction
+{
+	public :
+	
+	FlowPrediction(
+
+};
+*/
 
 
 #endif

@@ -1,5 +1,6 @@
 #define OPENCV_USE
-#define gradient_check
+//#define gradient_check
+#define use_sgd
 
 #include "../../NN.h"
 #include "../OPU/projectOPU1.h"
@@ -93,19 +94,21 @@ int main(int argc, char* argv[])
 	float lr = 1e-1f;
 	//Neural Networks settings :
 	Topology topo;
-	unsigned int nbrneurons = 25;
-	unsigned int nbrlayer = 1;
 	unsigned int nbrinput = width*height;
+	unsigned int nbrneurons = nbrinput*2;
+	unsigned int nbrlayer = 1;
 	unsigned int nbroutput = 10;
 	
-	//topo.push_back(nbrinput,NTNONE);	//input layer
-	topo.push_back(nbrinput,NTSIGMOID);	//input layer
+	topo.push_back(nbrinput,NTNONE);	//input layer
+	//topo.push_back(nbrinput,NTSIGMOID);	//input layer
 	
 	//topo.push_back(nbrneurons, NTSIGMOID);
-	topo.push_back(15, NTSIGMOID);
+	//topo.push_back(nbroutput*4, NTSIGMOID);
+	topo.push_back(nbroutput*4, NTRELU);
 	
 	//topo.push_back(nbroutput, NTSOFTMAX);	//linear output
-	topo.push_back(nbroutput, NTSIGMOID);	//linear output
+	topo.push_back(nbroutput, NTSIGMOID);	// output
+	//topo.push_back(nbroutput, NTTANH);	//linear output
 	
 	NN<float> nn(topo, lr);
 	NNTrainer<float> trainer(&nn);	
@@ -157,7 +160,7 @@ int main(int argc, char* argv[])
 	char labelval = 0;
 	//---------------------------------------------------
 	
-	int nbrTimes = 1;
+	int nbrTimes = 2;
 	
 	int iteration = 50000;
 	int offx = 2;
@@ -223,17 +226,18 @@ int main(int argc, char* argv[])
 			
 			//----------------------------------------
 			//NNTRAINER TEST :
-			Mat<float> output( nn.feedForward( inputR) );
+			Mat<float> output( nn.feedForward( inputO) );
 			int idmax = idmin( (-1.0f)*output).get(1,1);
 	
 			transpose( operatorL(target,output) ).afficher();
 	
 			std::cout << " LEARNING ITERATION : " << iteration << " ; IDMAX = " << idmax << std::endl;
-			inputOriginal.afficher();
+			//inputOriginal.afficher();
 	
-			trainer.accumulateGradient( inputO, (output - target) );
-			float momentum = 1.0f;
-			trainer.update(momentum);
+			trainer.accumulateGradient( inputO, transpose(output - target) );
+			float momentum = 0.8f;
+			//trainer.update(momentum);
+			trainer(GCSGDMomentum,momentum);
 			//----------------------------------------
 			
 			
@@ -267,6 +271,27 @@ int main(int argc, char* argv[])
 			}
 			*/
 			//-------------------
+			//NNTRAINER TEST :
+			output = nn.feedForward( inputR);
+			idmax = idmin( (-1.0f)*output).get(1,1);
+	
+			transpose( operatorL(target,output) ).afficher();
+	
+			std::cout << " LEARNING ITERATION : " << iteration << " ; IDMAX = " << idmax << std::endl;
+			//inputOriginal.afficher();
+	
+			trainer.accumulateGradient( inputR, transpose(output - target) );
+			float momentum = 0.8f;
+			//trainer.update(momentum);
+			trainer(GCSGDMomentum,momentum);
+			//----------------------------------------
+			//counting :
+			if(idmax == labelval+1)
+			{
+				countSuccess++;
+			}
+			
+			
 			
 			if( iteration % 1000 == 0)
 			{
@@ -339,7 +364,7 @@ int main(int argc, char* argv[])
 	label.close();
 	image.close();
 	
-	//nn.save(std::string("neuralnetworksDIGITROTATEDPI4"));
+	nn.save(std::string("neuralnetworksDIGITROTATEDPI4.NEWTRAINER.ROTATED"));
 		
 	return 0;
 }

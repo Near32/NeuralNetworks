@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11 -g -pthread    CMakeFiles/vizualizePolicy.dir/vizualizePolicy.cpp.o  -o ../bin/vizualizePolicy -rdynamic 

@@ -1,0 +1,16 @@
+#include "../Mat2.h"
+
+int main(int argc, char* argv[])
+{
+	int depth = 3;
+	int line = 10;
+	int column = 10;
+	Mat<float> m(1.0f,line,column,depth);
+	
+	m.afficher();
+	
+	for(int k=1:k<=depth;k++)
+		std::cout << m(1,1,k) << std::endl;
+	
+	return 0;
+}

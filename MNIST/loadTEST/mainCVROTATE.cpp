@@ -123,7 +123,7 @@ int main( int argc, char* argv[])
 	
 	bool erosion = false;
 	bool dissect = true;
-	bool dilate = true;
+	bool dilate = false;
 	
 	sensorCAM sensor(treshDist, erosion, dissect,dilate);
 	float ratio = 10.0f;
@@ -171,15 +171,7 @@ int main( int argc, char* argv[])
     cv::namedWindow("OUTPUT");
     cv::namedWindow("CIRCLES");
 	
-    
-    
-    if(argc > 1)
-	{
-		alpha = atof(argv[1]);
-	}
-	std::cout << " ALPHA == " << alpha << std::endl;
-	
-	
+    	
     while(continuer)
     {
 		cap >> frame;
@@ -205,6 +197,9 @@ int main( int argc, char* argv[])
 		//maximum likelihood digits :
 		Mat<float> maxpdDigit(0.0f,sizeMapH,sizeMapW);
 		Mat<float> maxDigit(maxpdDigit);
+		Mat<float> maxTheta(maxDigit);
+		//Mat<Mat<float> > maxDigitInfo( Mat<float>(0.0f, 1,2), sizeMapH, sizeMapW );
+		//info : digit : theta
 		
 		if(trustable)
 		{
@@ -212,12 +207,15 @@ int main( int argc, char* argv[])
 			{
 				float probalabel = finalAssoc.get(i,7);
 				float label = finalAssoc.get(i,6);
-			
+				float theta = finalAssoc.get(i,5);
+				
 				//update :
 				Mat<float> pdPosition( pdDigit(1+floor(finalAssoc.get(i,4)/ratio),1+floor(finalAssoc.get(i,3)/ratio) ) );
 				pdPosition.set( (probalabel+pdPosition.get(label,1)*2.0f)/2.0f, label,1);
 			
 				pdDigit.set( 1+floor(finalAssoc.get(i,4)/ratio),1+floor(finalAssoc.get(i,3)/ratio), pdPosition);	
+				maxTheta.set( theta, 1+floor(finalAssoc.get(i,4)/ratio),1+floor(finalAssoc.get(i,3)/ratio));
+				
 				finalAssoc.afficher();		
 			}
 			
@@ -238,7 +236,7 @@ int main( int argc, char* argv[])
 		//afficherMat(std::string("PROBABILITY DENSITY MAP : blobs"), &maxpdDigit, (Mat<float>*)NULL, (Mat<float>*)NULL, true, ratio);
 		cv::Mat maxpdDigitCV( Mat2cvp( maxpdDigit, maxpdDigit, maxpdDigit) );
 		cv::resize( maxpdDigitCV,maxpdDigitCV, cv::Size(ratio*maxpdDigitCV.cols,ratio*maxpdDigitCV.rows) );
-		maxpdDigit = cv2Matp( maxpdDigitCV);
+		maxpdDigit = cv2Matp<float>( maxpdDigitCV);
 		//so that we can retrieve the precision..?
 		
 		if(trustable)
@@ -258,6 +256,7 @@ int main( int argc, char* argv[])
 				int thickness = 3;
 				cv::putText(frame, tnumber.str(), pt, cv::FONT_HERSHEY_SIMPLEX, (float)4.0, cv::Scalar(255,0,0), thickness);
 				tnumber << ":" << (int)(finalAssoc.get(i,7)*100) << "%";
+				tnumber << ";" << finalAssoc.get(i,5)*180.0f/PI << " deg";
 				cv::putText(maxpdDigitCV, tnumber.str(), pt+cv::Point(-10,20), cv::FONT_HERSHEY_SIMPLEX, (float)0.5f, cv::Scalar(255,255,255), 1);
 			}
 			

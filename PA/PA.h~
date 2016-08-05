@@ -2,7 +2,8 @@
 #define PA_H
 
 /*Policy Approximator Interface */
-#include "../MAT/Mat.h"
+//#include "../MAT/Mat.h"
+#include "../MAT/Mat2.h"
 #include "../ONSCNewton/ONSCNewton.h"
 #include "../NN.h"
 
@@ -12,8 +13,9 @@ class PA
 {
 	public :
 	std::mutex mutexPA;
+	bool discreteCase;
 	
-	PA(const float& lr_, const float& eps_) : lr(lr_), eps(eps_)
+	PA(const float& lr_, const float& eps_, bool discreteCase_ = false) : lr(lr_), eps(eps_), discreteCase(discreteCase_)
 	{
 	
 	
@@ -128,9 +130,28 @@ class QPANN : public PA<T>
 	{
 		this->mutexPA.lock();
 		this->S1 = S;
+		//this->A1 = this->maxOutput*clipping(this->net->feedForward( (normalization? normalize( this->S1) : this->S1 ) ));
 		this->A1 = clipping(this->net->feedForward( (normalization? normalize( this->S1) : this->S1 ) ));
+		//this->A1 = this->maxOutput*clipping(this->net->feedForward( (normalization? normalize( this->S1) : this->S1 ) ));
 		
 		this->mutexPA.unlock();
+		
+		if(this->discreteCase)
+		{
+			int max = idmin( (-1.0f)*this->A1).get(1,1);
+			for(int i=1;i<=this->A1.getLine();i++)
+			{
+				if(i==max)
+				{
+					this->A1.set( 1.0f, i,1);
+				}
+				else
+				{
+					this->A1.set( 0.0f, i,1);
+				}
+			}
+		}
+		
 		return this->A1;
 	}
 	
@@ -267,15 +288,62 @@ class QPANN : public PA<T>
 		{
 			//random :
 			Mat<float> ret(this->dimActionSpace,1);
-			float amount = 1e-2f;	//1% of exploration...
+			float amount = 5e-1f;	//50% of exploration...
+			
+			if(this->discreteCase)
+			{
+				amount = 1.0f/maxOutput;
+				//thus we have a noise that is of the same amplitude as the probability of our actions.
+			}
 			
 			for(int i=1;i<=this->dimActionSpace;i++)
 			{
 				//ret.set(  ( ((float)(rand()%(int)1000) ) - ((float)(rand()%(int)1000) ) )*maxOutput/2e3f,i,1);
+				mutexNoise.lock();
 				ret.set( noise->dev()*maxOutput*amount, i,1);
+				mutexNoise.unlock();
 			}
 			
-			return ret+this->estimateAction(S1);
+			if(this->discreteCase == false)
+			{
+				this->previousA1 = this->A1;
+				
+				ret = ret+this->estimateAction(S1);
+				ret = clipping(0.5f*ret+0.5f*this->previousA1);
+				//ret = clipping(ret+this->estimateAction(S1));
+				this->A1 = ret;
+				
+				return ret;
+			}
+			else
+			{
+				this->mutexPA.lock();
+				this->S1 = S1;
+				this->A1 = clipping(this->net->feedForward( (normalization? normalize( this->S1) : this->S1 ) ));
+		
+				this->mutexPA.unlock();
+				
+				ret += this->A1;
+				int max = idmin( (-1.0f)*ret).get(1,1);
+				for(int i=1;i<=ret.getLine();i++)
+				{
+					if(i==max)
+					{
+						ret.set( 1.0f, i,1);
+					}
+					else
+					{
+						ret.set( 0.0f, i,1);
+					}
+				}
+				
+				if(isnanM(ret))
+				{
+					throw;
+				}
+				
+				return ret;
+			}
 		}
 		
 		return Mat<float>(1,1);
@@ -311,14 +379,21 @@ class QPANN : public PA<T>
 			for(int j=1;j<=r.getColumn();j++)
 			{
 				T val = r.get(i,j);
-				if(isnan(val))
+				if( !isfinite(val) )
 				{
 					val = 0.0f;
 				}
 				
 				if( fabs_(val) > maxOutput)
 				{
-					r.set( (val/fabs_(val))*maxOutput, i,j);
+					if(val>0.0f)
+					{
+						r.set( maxOutput, i,j);
+					}
+					else
+					{
+						r.set( -maxOutput, i,j);
+					}
 				}
 			}
 		}
@@ -355,9 +430,11 @@ class QPANN : public PA<T>
 	
 	Mat<T> S1;			/*current state used in the estimation of the action*/
 	Mat<T> A1;			/*at the beginning : current action estimated.*/
+	Mat<T> previousA1;
 						  
 	T maxOutput;
 	NormalRand* noise;
+	std::mutex mutexNoise;
 	
 	Mat<float> inputMean;
 	Mat<float> invinputStd;

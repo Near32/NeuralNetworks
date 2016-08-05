@@ -33,6 +33,25 @@ std::ifstream image,label;
 std::ofstream report;
 
 
+std::vector<Mat<float> > digits(20);
+int nbrImg = 10;
+
+void loadDIGITS()
+{
+	std::string path("./images/");
+	for(int i=0;i<nbrImg/2;i++)
+	{
+		std:string p = path+std::to_string(i+1)+".png";
+		digits[i] = cv2Matp<float>(cv::imread(p));
+	}
+}
+
+Mat<float> inputDIGITS(int& label)
+{
+	label = (rand()%nbrImg)+1;
+	return digits[label-1];
+}
+
 Mat<float> inputMNIST(char& label_val) 
 {
 	Mat<float> im(height,width);
@@ -91,16 +110,19 @@ int main(int argc, char* argv[])
 	
 	//Neural Networks settings :
 	Topology topo;
+	//unsigned int nbrneurons = 100;
 	unsigned int nbrneurons = 25;
 	unsigned int nbrlayer = 1;
 	unsigned int nbrinput = width*height;
 	unsigned int nbroutput = 10;
 	
-	//topo.push_back(nbrinput,NTNONE);	//input layer
-	topo.push_back(nbrinput,NTSIGMOID);	//input layer
+	topo.push_back(nbrinput,NTNONE);	//input layer
+	//topo.push_back(nbrinput,NTSIGMOID);	//input layer
 	
-	topo.push_back(nbrneurons, NTSIGMOID);
-	topo.push_back(15, NTSIGMOID);
+	//topo.push_back(nbrneurons, NTSIGMOID);
+	topo.push_back(nbrneurons, NTRELU);
+	//topo.push_back(25, NTSIGMOID);
+	//topo.push_back(25, NTRELU);
 	
 	//topo.push_back(nbroutput, NTSOFTMAX);	//linear output
 	topo.push_back(nbroutput, NTSIGMOID);	//linear output
@@ -318,7 +340,7 @@ int main(int argc, char* argv[])
 	label.close();
 	image.close();
 	
-	nn.save(std::string("neuralnetworksDIGITROTATEDPI4"));
+	nn.save(std::string("neuralnetworksDIGITROTATEDPI5"));
 		
 	return 0;
 }

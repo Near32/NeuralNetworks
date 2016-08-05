@@ -1,0 +1,16 @@
+#include "../Tensor.h"
+
+int main(int argc, char* argv[])
+{
+	int depth = 3;
+	int line = 10;
+	int column = 10;
+	Tensor<float> t(1.0f,line,column,depth);
+	
+	t.afficher();
+	
+	t[1].afficher();
+	t[0].afficher();
+	
+	return 0;
+}

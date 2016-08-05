@@ -11,6 +11,8 @@
 /home/kevin/Development/NN/MAT/Mat.h
 ../RK4/RK4.h
 /home/kevin/Development/NN/RK4/RK4.h
+python2.7/Python.h
+-
 
 /home/kevin/Development/NN/FA/FA.h
 ../MAT/Mat.h
@@ -52,6 +54,10 @@ vector
 fstream
 -
 mutex
+-
+exception
+-
+typeinfo
 -
 MAT/Mat.h
 /home/kevin/Development/NN/MAT/Mat.h
