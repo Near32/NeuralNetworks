@@ -18,7 +18,7 @@
 #define maxi 10
 
 using namespace std;
-
+typedef unsigned int uint;
 /*
 #define throw(message)\
 {cout << "ERROR : " << message << endl << " in file " << __FILE__ << " at line " << __LINE__ << endl;\
@@ -31,24 +31,24 @@ class Mat
 {
     protected :
     
-        int m_line;	/*m_line = length(Mat<T>,1) +1*/
-        int m_column;	/*idem...*/                
-		int m_depth;
+        unsigned int m_line;	/*m_line = length(Mat<T>,1) +1*/
+        unsigned int m_column;	/*idem...*/                
+		unsigned int m_depth;
 		
     public :
 		
 		T* mat;
 		T dummy;
 
-        int getLine() const
+        uint getLine() const
         {
 			return m_line;
 		}
-        int getColumn() const
+        uint getColumn() const
         {
 			return m_column;
 		}
-		int getDepth()	const
+		uint getDepth()	const
 		{
 			return m_depth;
 		}
@@ -100,7 +100,7 @@ class Mat
 		}
 
 
-		Mat( int line, int column, int depth=1)
+		Mat( unsigned int line, unsigned int column, unsigned int depth=1)
 		{
 			m_line = line;
 			m_column = column;
@@ -116,7 +116,7 @@ class Mat
 		/*---------------------------------------------*/
 
 
-		Mat( int line, int column, char mode, int depth=1)
+		Mat( unsigned int line, unsigned int column, char mode, unsigned int depth=1)
 		{
 			m_line = line;
 			m_column = column;
@@ -163,7 +163,7 @@ class Mat
 		/*---------------------------------------------*/
 
 
-		Mat( T value, int line, int column, int depth=1)
+		Mat( T value, unsigned int line, unsigned int column, unsigned int depth=1)
 		{
 			m_line = line;
 			m_column = column;
@@ -198,7 +198,7 @@ class Mat
 
 
 		
-		inline T get(int line, int column,int depth=1) const
+		inline T get(unsigned int line, unsigned int column, unsigned int depth=1) const
 		{
 
 			if(line <= m_line && column <= m_column && line >=1 && column >=1 && depth<=m_depth && depth >=1)
@@ -208,7 +208,7 @@ class Mat
 		}
 
 
-		inline T& operator()(const int& line, const int& column, const int& depth=1)
+		inline T& operator()(const unsigned int& line, const unsigned int& column, const unsigned int& depth=1)
 		{
 			if(line <= m_line && column <= m_column && line >=1 && column >=1 && depth<=m_depth && depth >=1)
 				return mat[(depth-1)*m_line*m_column+(line-1)*m_column+(column-1)];
@@ -216,7 +216,7 @@ class Mat
 			return this->dummy;
 		}
 		
-		inline T operator()(const int& line, const int& column, const int& depth=1)	const
+		inline T operator()(const unsigned int& line, const unsigned int& column, const unsigned int& depth=1)	const
 		{
 			if(line <= m_line && column <= m_column && line >=1 && column >=1 && depth<=m_depth && depth >=1)
 				return mat[(depth-1)*m_line*m_column+(line-1)*m_column+(column-1)];
@@ -228,7 +228,7 @@ class Mat
 		/*---------------------------------------------*/
 
 
-		inline void set(T value, int line, int column, int depth=1)
+		inline void set(T value,const unsigned int& line, const unsigned int& column, const unsigned int& depth=1)
 		{
 			if(line <= m_line && column <= m_column && line >=1 && column >=1 && depth<=m_depth && depth >=1)
 				mat[(depth-1)*m_line*m_column+(line-1)*m_column+(column-1)] = value;
@@ -437,7 +437,7 @@ inline Mat<T> operator%(const Mat<T>& a, const Mat<T>& b);		/*usage du modulo co
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> operatorL(const Mat<T>& a, const Mat<T>& b);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
-Mat<T> Line( const Mat<T>& a, int ind);
+Mat<T> Line( const Mat<T>& a, uint ind);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> operatorC(const Mat<T>& a, const Mat<T>& b);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
@@ -447,7 +447,7 @@ inline Mat<T> extract(const Mat<T>& m, int ib, int jb, int ie, int je);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 inline Mat<T> extract(Mat<T>* m, int ib, int jb, int ie, int je);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
-inline Mat<T> extract(const Mat<T>& m, int ib, int jb, int kb, int ie, int je, int ke);
+inline Mat<T> extract(const Mat<T>& m, uint ib, uint jb, uint kb, uint ie, uint je, uint ke);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 inline Mat<T> transpose(const Mat<T>& a);
 template<typename T>	/*pas de point virgule en fin de ligne...*/
@@ -594,6 +594,12 @@ inline void homogeneousNormalization( Mat<T>* X);
 /*---------------------------------------------*/
 
 
+template<typename T> 
+using FProduct = Mat<T> (*)(Mat<T>*, Mat<T>*);
+
+extern FProduct<float> fproduct = product<float>;
+#define FPRODUCTDEFINITION
+
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
 {
@@ -605,11 +611,14 @@ Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
         throw;
     }
 
+	Mat<T> aa(a),bb(b);
+	return fproduct(&aa,&bb);
+		
     if( a.getLine() == b.getLine() && a.getColumn() == b.getColumn())
     {
     	
     	Mat<T> aa(a),bb(b);
-		return product(&aa,&bb);
+		return fproduct(&aa,&bb);
     }
     else
     {
@@ -648,6 +657,7 @@ Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
     }
     
 }
+
 
 
 template<typename T>	/*pas de point virgule en fin de ligne...*/
@@ -1277,7 +1287,8 @@ Mat<T> operatorC(const Mat<T>& a, const Mat<T>& b)
     else
     {
         cout << "Erreur : impossible de concatener les deux matrices sur les colonnes." << endl;
-        return Mat<T>( 1, 1);
+        throw;
+        //return Mat<T>( 1, 1);
     }
 
 }
@@ -1314,7 +1325,7 @@ Mat<T> operatorL(const Mat<T>& a, const Mat<T>& b)
     {
         cout << "Erreur : impossible de concatener les deux matrices sur les lignes." << endl;
         throw;
-        return Mat<T>(1, 1);
+        //return Mat<T>(1, 1);
     }
 
 }
@@ -1324,11 +1335,11 @@ Mat<T> operatorL(const Mat<T>& a, const Mat<T>& b)
 
 
 template<typename T>	/*pas de point virgule en fin de ligne...*/
-Mat<T> Line( const Mat<T>& a, int ind)
+Mat<T> Line( const Mat<T>& a, uint ind)
 {
-    int m = a.getColumn();
-    int d = a.getDepth();
-    Mat<T> r(1, m,d);
+    uint m = a.getColumn();
+    uint d = a.getDepth();
+    Mat<T> r((uint)1, m,d);
 
     for(int i=1;i<=m;i++)
     	for(int k=1;k<=d;k++)
@@ -1824,7 +1835,7 @@ inline Mat<T> extract(const Mat<T>& m, int ib, int jb, int ie, int je)
 
 
 template<typename T>	/*pas de point virgule en fin de ligne...*/
-inline Mat<T> extract(const Mat<T>& m, int ib, int jb, int kb, int ie, int je, int ke)
+inline Mat<T> extract(const Mat<T>& m, uint ib, uint jb, uint kb, uint ie, uint je, uint ke)
 {
     Mat<T> r(ie-ib+1, je-jb+1, ke-kb+1);
 
@@ -1834,7 +1845,7 @@ inline Mat<T> extract(const Mat<T>& m, int ib, int jb, int kb, int ie, int je, i
         {
         	for(int k=r.getDepth();k--;)
         	{
-            	r.set( m(ib+i+1-1,jb+j+1-1,kb+k+1), i+1, j+1,k+1);
+            	r.set( m(ib+i+1-1,jb+j+1-1,kb+k+1-1), i+1, j+1,k+1);
             }
         }
     }

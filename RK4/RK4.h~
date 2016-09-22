@@ -130,6 +130,16 @@ class RK4
 		}
     }
     
+    float getCurrentTime()	const
+    {
+    	return currentTime;
+    }
+    
+    Mat<float>& getStateVector()
+    {
+    	return stateVector;
+    }
+    
 };
 
 class RK42 : public RK4
@@ -140,7 +150,7 @@ class RK42 : public RK4
 	public :
 	
 	
-	RK42(Mat<float> (*func2_)(const Mat<float>&,Mat<float>&, void*), void* objUsed_) : RK4(),func2(func2_)
+	RK42(Mat<float> (*func2_)(const Mat<float>&,Mat<float>&, void*), void* objUsed_) : RK4(NULL,objUsed_),func2(func2_)
     {
 
     }
@@ -185,6 +195,77 @@ class RK42 : public RK4
        
 		return this->stateVector;
        
+    }
+    
+};
+
+
+class RK43 : public RK4
+{
+	protected :
+	Mat<float> (*func2)(const float&, const Mat<float>&,Mat<float>&, void*);
+	void (*callback)( void*,void*);
+	
+	public :
+	
+	
+	RK43(Mat<float> (*func2_)(const float&, const Mat<float>&,Mat<float>&, void*), void* objUsed_) : RK4(NULL,objUsed_),func2(func2_)
+    {
+		callback = NULL;
+    }
+    
+    ~RK43()
+    {
+    
+    }
+    
+	Mat<float> solve(const Mat<float>& initState, const float& timeStep_, const float& endTime_)
+    {
+       this->timeStep = timeStep_;
+       this->endTime = endTime_;
+       this->stateVector = initState;
+       //this->plotter.add(this->stateVector);
+       this->recording.push_back( transpose(this->stateVector));
+       
+       //this->printState();
+       
+       Mat<float> velocity(1,1);
+       
+       while(this->currentTime < this->endTime)
+       {
+           this->stateVector = this->func2(this->currentTime,this->stateVector,this->an,this->objUsed);
+           this->func2(this->currentTime+this->timeStep/2.0f, this->stateVector+(this->timeStep/2.0f)*this->an, this->bn,this->objUsed);
+           this->func2(this->currentTime+this->timeStep/2.0f, this->stateVector+(this->timeStep/2.0f)*this->bn, this->cn,this->objUsed);
+           this->func2(this->currentTime+this->timeStep, this->stateVector+this->timeStep*this->cn, this->dn, this->objUsed);
+           
+           velocity = (this->timeStep/6.0f)*(this->an+2.0f*this->bn+2.0f*this->cn+this->dn) ;
+
+           //regularizeNanM( &velocity);
+           regularizeNanInfM( &velocity);
+           
+           this->stateVector += velocity;
+           //this->stateVector = this->func2(this->stateVector,this->an,this->objUsed);
+           
+           this->recording.push_back( transpose(this->stateVector) );
+           //this->plotter.add(this->stateVector);
+           
+           //callback :
+           if(callback != NULL)
+           {
+           		this->callback(this,this->objUsed);
+           }
+           
+           
+           this->currentTime = this->currentTime + this->timeStep;
+       }
+       
+		return this->stateVector;
+       
+    }
+    
+    void setCallbackFunction( void (*cb)(void*,void*) )
+    {
+    	this->callback = cb;
     }
     
 };
@@ -453,7 +534,7 @@ Mat<float> KURAMOTOMODEL1_RK42(const Mat<float>& state, Mat<float>& stateDot, vo
 			theta += 2*PI;
 		}
 		
-		dupstate.set( theta, 2,1);		
+		dupstate.set( theta, i,1);		
 		
 		psi += theta/N;
 		float stheta = sin(theta);
@@ -478,6 +559,195 @@ Mat<float> KURAMOTOMODEL1_RK42(const Mat<float>& state, Mat<float>& stateDot, vo
     return dupstate;
 }
 
+
+class DDEHistory
+{
+	protected :
+	std::map<float,Mat<float> > phi;
+	float discreteStep;
+	float currentTime;
+	float delay;
+	
+	public :
+	
+	DDEHistory( const float& delay_ = 1.0f, const float& dstep = 0.1f, std::map<float, Mat<float> >* historyPhi = NULL) : discreteStep(dstep), delay(delay_)
+	{
+		if( historyPhi != NULL)
+		{
+			phi = *historyPhi;
+		}
+		else
+		{
+			phi.clear();
+		}
+		
+		currentTime = 0.0f;
+		
+	}
+	
+	~DDEHistory()
+	{
+	
+	}
+	
+	Mat<float>& get( const float& t)
+	{
+		if( phi.find(t) != phi.end() )
+		{
+			return phi[t];
+		}
+		else
+		{
+			//we have to interpolate the quantity : LINEAR INTERPOLATION 
+			float tm,tp;
+			Mat<float> sm,sp;
+			std::map<float,Mat<float> >::iterator it = phi.begin();
+		
+			while( it->first < t && it != phi.end() )
+			{
+				it++;
+			}
+			it--;
+			
+			tm = it->first;
+			sm = it->second;
+			
+			while( it->first <= t && it != phi.end() )
+			{
+				it++;
+			}
+			
+			tp = it->first;
+			sp = it->second;
+			
+			phi[t] = sm+((float) ((t-tm)/pow(tp-tm,2)) ) * (sp-sm); 
+			
+			return phi[t];
+			
+		}
+	}
+	
+	Mat<float> add( const float& t, const Mat<float>& state)
+	{
+		this->phi[t] = state;
+		
+		if( t > this->currentTime)
+		{
+			this->currentTime = t;
+		}
+	}
+	
+	float getCurrentTime()	const
+	{
+		return currentTime;
+	}
+	
+	float getDelay() const
+	{
+		return delay;
+	}
+	
+};
+
+
+
+Mat<float> KURAMOTOMODEL_TIME_DELAY_RK43(const float& currentTime, const Mat<float>& state, Mat<float>& stateDot, void* obj)
+{
+	/*% %     state :
+	% %     theta1 w1 K1
+	% %     theta2 w2 K2
+	% %     ...
+	% %		thetaN wN kN
+	% %		
+    */
+    int N = state.getLine();
+    
+    DDEHistory* previousStates = (DDEHistory*)obj;
+	
+    float delay = previousStates->getDelay();
+    float previousTime = currentTime-delay;
+    Mat<float>& previousStateTau = previousStates->get(previousTime);
+    
+    Mat<float> dupstate(state);
+    float eps = numeric_limits<float>::epsilon();
+    Mat<float> nstateDot( 0.0f*state );
+	
+	//let us regularize the thetas and compute psi and r:
+	float psi = 0.0f;
+	Mat<float> repsi(0.0f,1,2);
+	
+	for(int i=1;i<=N;i++)
+	{
+		
+		float theta = previousStateTau.get(i,1);
+		
+		if( !isfinite(theta))
+		{
+			theta = 0.0f;
+		}
+	
+		while( theta > PI)
+		{
+			theta-=2*PI;
+		}
+		while( theta < -PI)
+		{
+			theta += 2*PI;
+		}
+		
+		dupstate.set( theta, i,1);
+		
+		psi += theta/N;
+		float stheta = sin(theta);
+		float ctheta = cos(theta);
+		
+		repsi.set( repsi.get(1,1)+ctheta/N, 1,1);
+		repsi.set( repsi.get(1,2)+stheta/N, 1,2);
+	}
+    
+    float r = sqrt( pow(repsi.get(1,1),2)+pow(repsi.get(1,2),2) );
+    
+    try
+    {
+    	previousStates->add( previousTime, dupstate);
+    }
+    catch( std::exception& e)
+    {
+    	std::cout << e.what() << std::endl;
+    }
+    
+    
+    for(int i=1;i<=N;i++)
+	{
+		float theta = dupstate.get(i,1);
+		float thetadot = state.get(i,2)+state.get(i,3)*r*sin(psi-theta);
+		
+		nstateDot.set( thetadot, i,1);		
+	}
+	
+	stateDot = nstateDot;
+	
+    return dupstate;
+}
+
+void CALLBACK_KURAMOTOMODEL_TIME_DELAY_RK43( void* simulator, void* obj)
+{
+	RK43* sim = (RK43*)simulator;
+	DDEHistory* ddeh = (DDEHistory*)obj;
+	
+	Mat<float> state( sim->getStateVector() );
+	float currentTime = sim->getCurrentTime();
+	
+	try
+	{
+		ddeh->add( currentTime, state);
+	}
+	catch( std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+	}
+	
+}
 #endif
 
 

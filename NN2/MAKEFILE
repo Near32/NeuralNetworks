@@ -1,0 +1,2 @@
+#!/bin/bash
+g++ testNN2.cpp -g -o output.testNN2 -pthread -std=c++11

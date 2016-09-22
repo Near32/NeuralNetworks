@@ -14,6 +14,8 @@
 
 //#include "MAT/Mat.h"
 #include "MAT/Mat2.h"
+#include "../MTPRODUCT/MTPRODUCT.h"
+
 #include "RAND/rand.h"
 #include "RunningStats/RunningStats.h"
 
@@ -193,7 +195,7 @@ std::vector<std::string> parseString(const std::string& line, char delim)
     return elems;
 }
 	
-typedef struct CLType
+typedef enum CLType
 {
 	CLTNORMAL,
 	CLTINPUT,
@@ -206,12 +208,14 @@ class convLayerTopoInfo
 {
 	public :
 	
-	convLayerTopoInfo(const CLType& cltype_=CLTCONV, const unsigned int& hi=28, const unsigned int& wi=28, const unsigned int& di=1, const unsigned int& hf=3, const unsigned int& wf=3, const unsigned int& df=1, const unsigned int& nbrf=32, const unsigned int& str=1, const unsigned int& p=0) : cltype(cltype_), Winput(wi),Hinput(hi), Dinput(di), Wfilter(wf),Hfilter(hf), Dfilter(df), nbrFilter(nbrf),Stride(str),Pad(p)
+	convLayerTopoInfo(const CLType& cltype_=CLTCONV, const unsigned int& hi=28, const unsigned int& wi=28, const unsigned int& di=1, const unsigned int& hf=3, const unsigned int& wf=3, const unsigned int& nbrf=32, const unsigned int& str=1, const unsigned int& p=0) : cltype(cltype_), Winput(wi),Hinput(hi), Dinput(di), Wfilter(wf),Hfilter(hf), nbrFilter(nbrf),Stride(str),Pad(p)
 	{
 		switch(cltype)
 		{
 			case CLTINPUT :
 			{
+				this->Dfilter = this->Dinput;
+				
 				this->Woutput = this->Winput;
 				this->Houtput = this->Hinput;
 				this->Doutput = this->Dinput;
@@ -220,6 +224,8 @@ class convLayerTopoInfo
 			
 			case CLTCONV:
 			{
+				this->Dfilter = this->Dinput;
+				
 				this->Woutput = 1+ (Winput + 2*Pad - Wfilter)/Stride;
 				this->Houtput = 1+ (Hinput + 2*Pad - Hfilter)/Stride;
 				this->Doutput = nbrFilter;
@@ -228,6 +234,8 @@ class convLayerTopoInfo
 			
 			case CLTPOOL :
 			{
+				this->Dfilter = this->Dinput;
+				
 				this->Woutput = 1+ (Winput - Wfilter)/Stride;
 				this->Houtput = 1+ (Hinput - Hfilter)/Stride;
 				this->Doutput = this->Dinput;
@@ -236,6 +244,8 @@ class convLayerTopoInfo
 			
 			case CLTRELU :
 			{
+				this->Dfilter = this->Dinput;
+				
 				this->Woutput = this->Winput;
 				this->Houtput = this->Hinput;
 				this->Doutput = this->Dinput;
@@ -252,6 +262,7 @@ class convLayerTopoInfo
 	{
 	
 	}
+	
 	
 	
 	//-------------------------------
@@ -276,13 +287,56 @@ class convLayerTopoInfo
 };
 
 //DUMMY instance used to initialize the normal layers that are not convolutionnal...
-convLayerTopoInfo clti_NORMAL(CLTNORMAL,1,1,1,1,1,1);
+const convLayerTopoInfo clti_NORMAL(CLTNORMAL,1,1,1,1,1,1);
+bool operator==(const convLayerTopoInfo& clti1, const convLayerTopoInfo& clti2)
+{
+	
+	if(clti1.cltype != clti2.cltype )
+		return false;
 
+	if(clti1.Winput != clti2.Winput )
+		return false;
+		
+	if(clti1.Hinput != clti2.Hinput )
+		return false;
+
+	if(clti1.Dinput != clti2.Dinput )
+		return false;
+
+	if(clti1.Woutput != clti2.Woutput )
+		return false;
+		
+	if(clti1.Houtput != clti2.Houtput )
+		return false;
+
+	if(clti1.Doutput != clti2.Doutput )
+		return false;
+
+	if(clti1.Wfilter != clti2.Wfilter )
+		return false;
+		
+	if(clti1.Hfilter != clti2.Hfilter )
+		return false;
+
+	if(clti1.Dfilter != clti2.Dfilter )
+		return false;
+
+	if(clti1.nbrFilter != clti2.nbrFilter )
+		return false;
+	
+	if(clti1.Pad != clti2.Pad )
+		return false;
+		
+	if(clti1.Stride != clti2.Stride )
+		return false;
+		
+	return true;
+}
 class Topology
 {
 	public :
 	
-	Topology() : /*convLayer(false),nbrConvLayer(0),IX(0), IY(0), K0(0), nbrConvRELUperLayer(0)*/
+	Topology() /*: convLayer(false),nbrConvLayer(0),IX(0), IY(0), K0(0), nbrConvRELUperLayer(0)*/
 	{
 		
 	}
@@ -431,7 +485,7 @@ class Topology
 		return LTLayer[nl];
 	}
 	
-	convLayerTopoInfo* getCLTI(unsigned int nl)	const
+	convLayerTopoInfo getCLTI(unsigned int nl)	const
 	{
 		if( nl >= CLTILayer.size() )
 		{
@@ -556,11 +610,11 @@ class Connection
 	{
 		net = previousLayer->net;
 		
-		nbrIN = previousLayer->getNbrNeurons();
-		this->previousLayer->setBOOL_CLTI(true);
+		nbrIN = previousLayer->getNbrNeurons();		
 		previousLayer->setOutConnection(this);
+		
 		nbrOUT = nextLayer->getNbrNeurons();
-		nextLayer->setInConnection(this);
+		
 		
 		W = Mat<T>((T)0,nbrOUT,nbrIN+1);
 		dW = Mat<T>((T)0,nbrOUT,nbrIN+1);
@@ -572,13 +626,15 @@ class Connection
 		{
 			for(int j=1;j<=W.getColumn();j++)
 			{
-				W.set( (T)randomWeightGaussian(), i,j);
+				W.set( (T)randomWeightGaussian<T>(), i,j);
 			}
 		}
 	
 		nr = new NormalRand( 0.0f, 10.0f, 1029);
 		
-		b = Mat<T>((T)randomWeightGaussian(),1,1);
+		
+		nextLayer->setInConnection(this);
+		b = Mat<T>((T)randomWeightGaussian<T>(),1,1);
 		
 	}
 	
@@ -586,7 +642,6 @@ class Connection
 	{
 		net = previousLayer->net;
 		nbrIN = previousLayer->getNbrNeurons();
-		this->previousLayer->setBOOL_CLTI(false);
 		previousLayer->setOutConnection(this);
 		nbrOUT = nextLayer->getNbrNeurons();
 		nextLayer->setInConnection(this);	
@@ -857,7 +912,7 @@ class Connection
 				{
 					//W.set( numeric_limits<T>::epsilon(), i,j);
 					//let us reinitialized this weight :
-					W.set( randomWeightGaussian(), i,j);
+					W.set( (T)randomWeightGaussian<T>(), i,j);
 				}
 			}
 		}
@@ -1076,10 +1131,10 @@ class Layer
 	unsigned int idxLayer;	
 	
 	
-	bool initCLTI;
+	bool isConvLayer;
 		
 	
-	Layer(NN<T>* net_, const LAYERTYPE& ltype_, const NEURONTYPE& ntype_, const unsigned int& nbrNeurons_, unsigned int idxLayer_, bool inherited = false) : net(net_), idxLayer(idxLayer_), ltype(ltype_), ntype(ntype_), nbrNeurons(nbrNeurons_), outputs(Mat<T>((T)0,nbrNeurons,1)), activations(Mat<T>((T)0,nbrNeurons+1,1)), error(Mat<T>((T)0,nbrNeurons+1,1))
+	Layer(NN<T>* net_, const LAYERTYPE& ltype_, const NEURONTYPE& ntype_, const unsigned int& nbrNeurons_, unsigned int idxLayer_, bool inherited = false) : net(net_), idxLayer(idxLayer_), ltype(ltype_), ntype(ntype_), nbrNeurons(nbrNeurons_), outputs(Mat<T>((T)0,nbrNeurons,1)), activations(Mat<T>((T)0,nbrNeurons+1,1)), error(Mat<T>((T)0,nbrNeurons+1,1)), isConvLayer(false)
 	{
 		if(!inherited)
 		{
@@ -1294,18 +1349,13 @@ class Layer
 	void setInConnection(Connection<T>* inc)
 	{
 		inConnection = inc;
+		
+		this->handleConvLayerTopoInfo();
 	}
 	
 	void setOutConnection(Connection<T>* outc)
 	{
 		outConnection = outc;
-		
-		this->handleConvLayerTopoInfo();
-	}
-	
-	virtual void setBOOL_CLTI(const bool& init)
-	{
-		initCLTI = init;
 	}
 	
 	virtual void handleConvLayerTopoInfo() const
@@ -1340,6 +1390,30 @@ class Layer
 	}
 };
 
+template<typename T>
+Mat<T> reshapeColumn(const Mat<T>& m)
+{
+	unsigned int l = m.getLine();
+	unsigned int c = m.getColumn();
+	unsigned int d = m.getDepth();
+	
+	Mat<T> temp( l*c*d, (unsigned int)1, (unsigned int)1);
+	int idx = 1;
+	
+	for(int k=1;k<=d;k++)
+	{
+		for(int j=1;j<=c;j++)
+		{
+			for(int i=1;i<=l;i++)
+			{
+				temp(idx,1,1) = m(i,j,k);
+				idx++; 
+			}
+		}
+	}
+	
+	return temp;
+}
 
 template<typename T>
 class Layer2 : public Layer<T>
@@ -1379,9 +1453,12 @@ class Layer2 : public Layer<T>
 		return ret;
 	}
 	
-	Layer2(NN<T>* net_, const LAYERTYPE& ltype_, const NEURONTYPE& ntype_, const unsigned int& nbrNeurons_, unsigned int idxLayer_,convLayerTopoInfo clti_ = clti_NORMAL ) : Layer<T>(net_,ltype_,ntype_, nbrNeurons_, idxLayer_,true), clti(clit_)
+	Layer2(NN<T>* net_, const LAYERTYPE& ltype_, const NEURONTYPE& ntype_, const unsigned int& nbrNeurons_, unsigned int idxLayer_,convLayerTopoInfo clti_ = clti_NORMAL ) : Layer<T>(net_,ltype_,ntype_, nbrNeurons_, idxLayer_,true), clti(clti_)
 	{
-		
+		if( !(clti == clti_NORMAL) )
+		{
+			this->isConvLayer = true;	
+		}
 	}
 	
 	~Layer2()
@@ -1389,14 +1466,15 @@ class Layer2 : public Layer<T>
 		
 	}
 	
+	
 	virtual void handleConvLayerTopoInfo() const override
 	{
-		if(this->initCLTI && this->ltype == LTCONV)
+		if(this->isConvLayer)
 		{
-			if(this->clti != clti_NORMAL)
+			if( !(this->clti == clti_NORMAL) )
 			{
-				Mat<T> newWeights(clti.Hfilter,clti.Wfilter, clti.nbrFilter);
-				Mat<T> newBias((T)randomWeightGaussian(), 1,1, clti.nbrFilter);
+				Mat<T> newWeights(clti.Hfilter*clti.Dfilter,clti.Wfilter, clti.nbrFilter);
+				Mat<T> newBias((T)randomWeightGaussian<T>(), 1,1, clti.nbrFilter);
 				
 				for(int k=1;k<=newWeights.getDepth();k++)
 				{
@@ -1404,17 +1482,13 @@ class Layer2 : public Layer<T>
 					{
 						for(int j=1;j<=newWeights.getColumn();j++)
 						{
-							newWeights.set( (T)randomWeightGaussian(), i,j,k);
+							newWeights.set( (T)randomWeightGaussian<T>(), i,j,k);
 						}
 					}
 				}
 				
-				this->outConnection->setWeights(newWeights);
-				this->outConnection->setBias(newBias);
-			}
-			else
-			{
-				throw;
+				this->inConnection->setWeights(newWeights);
+				this->inConnection->setBias(newBias);
 			}
 		}
 	}
@@ -1423,7 +1497,7 @@ class Layer2 : public Layer<T>
 	{
 		this->inputs = inputs_;
 		
-		if(this->ltype != LTCONV)
+		if(this->clti == clti_NORMAL)
 		{
 			switch(this->ntype)
 			{
@@ -1443,24 +1517,8 @@ class Layer2 : public Layer<T>
 							if(this->inputs.getColumn() != 1)
 							{
 								//let us go from a convolutionnal layer to a fully connected layer :
-								unsigned int l = this->inputs.getLine();
-								unsigned int c = this->inputs.getColumn();
-								unsigned int d = this->inputs.getDepth();
-								Mat<T> temp( l*c*d, 1, 1);
-								int idx = 1;
-								for(int k=1;k<=d;k++)
-								{
-									for(int j=1;j<=c;j++)
-									{
-										for(int i=1;i<=l;i++)
-										{
-											temp(idx,1,1) = inputs(i,j,k);
-											idx++; 
-										}
-									}
-								}
-								
-								this->inputs = temp;
+								//TODO : do not forget to change put an LTINPUT when creating the first fully connected layer's topology info.
+								this->inputs = reshapeColumn(this->inputs);
 							}
 							
 							this->activations = this->inputs;
@@ -1511,7 +1569,7 @@ class Layer2 : public Layer<T>
 		else
 		{
 			//TODO : handle conv relu pool in clti.cltype...
-			switch(this->clti.CLType)
+			switch(this->clti.cltype)
 			{
 				case CLTPOOL :
 				{
@@ -1527,7 +1585,7 @@ class Layer2 : public Layer<T>
 						{
 							for(int j=1;j<=Wo;j++)
 							{
-								this->POOLmaxIDX(i,j,k) = max( extract( this->inputs, (i-1)*S+1, (j-1)*S+1, c, (i-1)*S+1, (j-1)*S+1, c ) ) ;
+								this->POOLmaxIDX(i,j,k) = max( extract( this->inputs, (i-1)*S+1, (j-1)*S+1, k, (i-1)*S+1, (j-1)*S+1, k ) ) ;
 								this->activations(i,j,k) = POOLmaxIDX(i,j,k)(1,1);
 							}
 						}
@@ -1560,13 +1618,13 @@ class Layer2 : public Layer<T>
 					unsigned int Do = this->clti.Doutput;
 					unsigned int S = this->clti.Stride;
 					
-					this->activations = padding(this->input,this->clti.Pad);
+					this->activations = padding( this->inputs, this->clti.Pad);
 					Mat<T> W(this->inConnection->getWeights());
 					Mat<T> b(this->inConnection->getBias());
 
 					this->outputs = Mat<T>(Ho,Wo,Do);
 					
-					computeConv(outputs,activations,W,b,S);
+					computeConv(this->outputs,this->activations,W,b,S);
 					
 					
 				}
@@ -1620,7 +1678,7 @@ class Layer2 : public Layer<T>
 		return this->outputs;
 	}
 	
-	Mat<T> padding( const Mat<T>& m, const unsigned int P)
+	Mat<T> padding( const Mat<T>& m, const unsigned int& P)
 	{
 		Mat<T> r((T)0,m.getLine()+P*2,m.getColumn()+P*2, m.getDepth());
 		
@@ -1657,16 +1715,19 @@ class Layer2 : public Layer<T>
 				{
 					T sum = b(1,1,k);
 					
+					/**/
 					for(int kk=1;kk<=activations.getDepth();kk++)
 					{
 						for(int ii=1;ii<=Ffilter;ii++)
 						{
 							for(int jj=1;jj<=Ffilter;jj++)
 							{
-								sum += Ws[kk](ii,jj,k)*activations(ii+(i-1)*S,jj+(j-1)*S, kk); 
+								sum += Ws[kk-1](ii,jj,k)*activations(ii+(i-1)*S,jj+(j-1)*S, kk); 
 							}
 						}
 					}
+					/**/
+					//sum = convolution(Ws,extract(activations, ii,jj, kk, ii+Ffilter-1,jj+Ffilter-1,kk) );
 					
 					outputs(i,j,k) = sum;
 				}
@@ -1938,12 +1999,26 @@ class NN
 		
 		for(int i=0;i<numLayer;i++)
 		{
+			if( !(m_layers[i]->isConvLayer) && outputs.getColumn() != 1) 
+			// not a convolutionnal layer... and the previous layer was a convolutionnal one : 
+			// we must reorganize the current output :
+			{
+				outputs = reshapeColumn(outputs); 
+			}
+			
+			if( !(m_layers[i]->isConvLayer) ) // not a convolutionnal layer..
+			{
+				if(m_layers[i]->ltype != LTINPUT)
+				{
+					outputs = operatorC(outputs, Mat<T>((T)1,1,outputs.getColumn()) );
+				}
+			}
+			
 			outputs = m_layers[i]->feedForward(outputs);
-			if(m_layers[i]->
-			outputs = operatorC(outputs, Mat<T>((T)1,1,outputs.getColumn()) );
+			
 		}
 		
-		Mat<float> ret( extract(outputs,1,1, outputs.getLine()-1,outputs.getColumn()) );
+		Mat<float> ret( outputs);
 		mutexNN.unlock();
 		
 		return ret;
@@ -2495,6 +2570,7 @@ class NN2 : public NN<T>
 };
 
 
+/*
 template<typename T>
 class CLayer
 {
@@ -2551,6 +2627,12 @@ class CLayer
 	
 	
 };
+
+*/
+
+
+
+
 //---------------------------------------------
 //---------------------------------------------
 //---------------------------------------------
