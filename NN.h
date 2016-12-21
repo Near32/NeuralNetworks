@@ -2118,7 +2118,8 @@ class NN
 		
 		mutexNN.lock();
 		
-		Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine()-1, 1)  );	//nbrOut x 1
+		//Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine()-1, 1)  );	//nbrOut x 1
+		Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine(), 1)  );	//nbrOut x 1
 		Mat<T> WLast( m_connections[numLayer-2]->getWeights() );	//nbrOut x nbrIn+1
 		WLast = extract(WLast, 1,1, WLast.getLine(), WLast.getColumn()-1);	//nbrOut x nbrIn
 		Mat<T> deltaF( m_layers[numLayer-1]->functionDerivative(actLast)  );

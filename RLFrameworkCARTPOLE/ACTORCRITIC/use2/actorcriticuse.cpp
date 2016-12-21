@@ -31,11 +31,12 @@ int main(int argc, char* argv[])
 	std::string filepathRSFA(filepath+".FA.txt");
 	std::string filepathRSPA(filepath+".PA.txt");
 	
-	unsigned int nbrthread = 4;
+	//unsigned int nbrthread = 4;
+	unsigned int nbrthread = 32;
 	unsigned int nbrepi = 50000;
 	float gamma_ = 0.99f;
 	
-	float EOE = 10.0f;	//in seconds...
+	float EOE = 5.0f;	//in seconds...
 	SimulatorRKCARTPOLE env_(EOE);
 	env_.idxAssociatedThread = -1;
 	env_.write = true;
