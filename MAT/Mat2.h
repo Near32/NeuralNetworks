@@ -599,9 +599,150 @@ inline void homogeneousNormalization( Mat<T>* X);
 template<typename T> 
 using FProduct = Mat<T> (*)(Mat<T>*, Mat<T>*);
 
-//extern FProduct<float> fproduct = product<float>;
-extern FProduct<float> fproduct;
+extern FProduct<float> fproduct = product<float>;
+//extern FProduct<float> fproduct;
 #define FPRODUCTDEFINITION
+
+
+//--------------------------------------------------------
+//--------------------------------------------------------
+//--------------------------------------------------------
+
+template<typename T>
+void registerBlocking1ptrM_column(const Mat<T>& a, const Mat<T>& b, Mat<T>& c, const size_t idxC)
+{
+	size_t elperline = a.getColumn();
+	size_t size = a.getLine();
+	float *apos1 = &a.mat[0];
+	float *apos2 = &a.mat[0]+elperline;
+	float *cpos = &c.mat[0]+(idxC-1);
+	size_t sizeCol = c.getColumn();
+	size_t div = 2;
+	size_t q=size/div;
+	size_t extra = size%div;
+	
+	
+	while(q--)
+	{
+		float ytemp1 = 0;
+		float ytemp2 = 0;
+		float* bpos = &b.mat[0]+(idxC-1);
+
+		for(int j=1;j<=a.getColumn();j++)
+		{
+			float bval = (*bpos);
+			ytemp1 += (*apos1++) * bval;
+			ytemp2 += (*apos2++) * bval;
+
+			bpos += sizeCol;
+		}
+		*cpos = ytemp1;
+		cpos += sizeCol;
+		*cpos = ytemp2;
+		cpos += sizeCol;
+		
+		// skip next row
+		apos1 += elperline;
+		apos2 += elperline;
+	}
+	
+	while(extra--)
+	{
+		float ytemp = 0;
+		float* bpos = &b.mat[0];
+		
+		for(int j=1;j<=a.getColumn();j++)
+		{
+			ytemp += (*apos1++) * (*bpos++);
+		}
+		
+		*cpos = ytemp;
+		cpos+=sizeCol;
+		
+	}
+}
+
+template<typename T>
+void registerBlocking1ptrM_column3(const Mat<T>& a, const Mat<T>& b, Mat<T>& c, const size_t idxC)
+{
+	size_t nbrElPerLine = a.getColumn();
+	size_t size = a.getLine();
+	T *apos1 = &a.mat[0];
+	T *apos2 = &a.mat[0]+nbrElPerLine;
+	T *apos3 = &a.mat[0]+2*nbrElPerLine;
+	T *cpos = &c.mat[0]+(idxC-1);
+	size_t sizeCol = c.getColumn();
+	size_t div = 3;
+	size_t q=size/div;
+	size_t extra = size%div;
+	
+	
+	while(q--)
+	{
+		T ytemp1 = 0;
+		T ytemp2 = 0;
+		T ytemp3 = 0;
+		T* bpos = &b.mat[0]+(idxC-1);
+
+		for(int j=1;j<=a.getColumn();j++)
+		{
+			T bval = (*bpos);
+			ytemp1 += (*apos1++) * bval;
+			ytemp2 += (*apos2++) * bval;
+			ytemp3 += (*apos3++) * bval;
+
+			bpos += sizeCol;
+		}
+		*cpos = ytemp1;
+		cpos += sizeCol;
+		*cpos = ytemp2;
+		cpos += sizeCol;
+		*cpos = ytemp3;
+		cpos += sizeCol;
+		
+		// skip next row
+		apos1 += 2*nbrElPerLine;
+		apos2 += 2*nbrElPerLine;
+		apos3 += 2*nbrElPerLine;
+	}
+	
+	while(extra--)
+	{
+		T ytemp = 0;
+		T* bpos = &b.mat[0];
+		
+		for(int j=1;j<=a.getColumn();j++)
+		{
+			ytemp += (*apos1++) * (*bpos++);
+		}
+		
+		*cpos = ytemp;
+		//cpos++;
+		cpos += sizeCol;
+		
+	}
+}
+
+template<typename T>
+void registerBlocking1ptrM(const Mat<T>& a,const  Mat<T>& b, Mat<T>& c)
+{
+	size_t nbrC = b.getColumn();
+	
+	for(size_t idxC=1;idxC<=nbrC;idxC++)
+	{
+		registerBlocking1ptrM_column<T>( a,b,c,idxC);
+		//registerBlocking1ptrM_column3<T>( a,b,c,idxC);
+	}
+	
+}
+
+
+//--------------------------------------------------------
+//--------------------------------------------------------
+//--------------------------------------------------------
+
+
+
 
 template<typename T>	/*pas de point virgule en fin de ligne...*/
 Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
@@ -614,8 +755,23 @@ Mat<T> operator*(const Mat<T>& a, const Mat<T>& b)
         throw;
     }
 
+	
+	/*
 	Mat<T> aa(a),bb(b);
-	return fproduct(&aa,&bb);
+	Mat<T> c(a.getLine(),b.getColumn());
+	registerBlocking1ptrM<T>(aa,bb,c);
+	return c;
+	*/
+	
+	
+	Mat<T> c(a.getLine(),b.getColumn());
+	registerBlocking1ptrM<T>(a,b,c);
+	return c;
+	
+	
+	//Mat<T> aa(a),bb(b);
+	//return fproduct(&aa,&bb);
+	
 		
     if( a.getLine() == b.getLine() && a.getColumn() == b.getColumn())
     {

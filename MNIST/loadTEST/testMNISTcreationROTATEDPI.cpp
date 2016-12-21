@@ -1,6 +1,6 @@
 #define OPENCV_USE
 #include "../../NN.h"
-#include "../OPU/projectOPU1.h"
+//#include "../OPU/projectOPU1.h"
 
 #include <iostream>
 #include <fstream>
@@ -8,6 +8,52 @@
 #include <string>
 
 //#define debuglvl1
+
+//rotation counterclockwise :
+Mat<float> rotation(float theta)
+{
+	Mat<float> r(2,2);
+	r.set( cos(theta), 1,1);
+	r.set( cos(theta),2,2);
+	r.set( sin(theta), 1,2);
+	r.set( -sin(theta),2,1);
+	
+	return r;
+	
+}
+
+
+//add 4 lines and 4 columns...
+Mat<float> rotate(const Mat<float>& im, float theta)
+{
+	Mat<float> rot( rotation(theta) );
+	
+	int h = im.getLine();
+	int w = im.getColumn();
+	float ox = ((float)w)/2.0f;
+	float oy = ((float)h)/2.0f;
+	
+	Mat<float> rim(0.0f, h+4,w+4);
+	
+	for(int i=1;i<=h;i++)
+	{
+		for(int j=1;j<=w;j++)
+		{
+			float x = j-ox;
+			float y = i-oy;
+			Mat<float> coord(2,1);
+			coord.set( x, 1,1);
+			coord.set( y, 2,1);
+			
+			//new coordinate :
+			coord = rot*coord;
+			
+			rim.set( im.get(i,j), oy+3+floor(coord.get(2,1)), ox+2+floor(coord.get(1,1)) );
+		}
+	}
+	
+	return rim;
+}
 
 
 // Training image file name
@@ -177,7 +223,7 @@ int main(int argc, char* argv[])
 	char labelval = 0;
 	//---------------------------------------------------
 	
-	int nbrTimes = 2;
+	int nbrTimes = 4;
 	
 	int iteration = 50000;
 	int offx = 2;
@@ -340,7 +386,7 @@ int main(int argc, char* argv[])
 	label.close();
 	image.close();
 	
-	nn.save(std::string("neuralnetworksDIGITROTATEDPI5"));
+	nn.save(std::string("neuralnetworksDIGITROTATEDPI5_OCT"));
 		
 	return 0;
 }
