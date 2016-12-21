@@ -14,7 +14,7 @@
 
 //#include "MAT/Mat.h"
 #include "MAT/Mat2.h"
-#include "../MTPRODUCT/MTPRODUCT.h"
+//#include "../MTPRODUCT/MTPRODUCT.h"
 
 #include "RAND/rand.h"
 #include "RunningStats/RunningStats.h"

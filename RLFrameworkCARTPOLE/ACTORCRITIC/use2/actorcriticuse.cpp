@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 	//unsigned int nbrthread = 4;
 	unsigned int nbrthread = 32;
 	unsigned int nbrepi = 50000;
-	float gamma_ = 0.99f;
+	float gamma_ = 0.8f;
 	
 	float EOE = 5.0f;	//in seconds...
 	SimulatorRKCARTPOLE env_(EOE);
@@ -58,9 +58,11 @@ int main(int argc, char* argv[])
 	/*
 	4x50
 	*/ 
-	float lrPA_ = 1e-5f;
+	//float lrPA_ = 1e-5f;
+	float lrPA_ = 1e-4f;
 	//we do not want to reach some local minima before finishing learning the Qvalues...
-	float lrFA_ = 1e-5f;
+	//float lrFA_ = 1e-5f;
+	float lrFA_ = 1e-4f;
 	/**/
 	float eps_ = 0.01f;
 	int dimActionSpace_ = 1;
@@ -70,7 +72,8 @@ int main(int argc, char* argv[])
 	/**/
 	#ifndef USESAVE
 	Topology topoFA;
-	unsigned int nbrneuronsFA = 64;
+	//unsigned int nbrneuronsFA = 64;
+	unsigned int nbrneuronsFA = 256;
 	unsigned int nbrlayerFA = 1;
 	#ifndef Vvalues
 	unsigned int nbrinputFA = dimActionSpace_+dimStateSpace_;
@@ -105,7 +108,8 @@ int main(int argc, char* argv[])
 	 
 	#ifndef USESAVE
 	Topology topoPA;
-	unsigned int nbrneuronsPA = 32;
+	//unsigned int nbrneuronsPA = 32;
+	unsigned int nbrneuronsPA = 128;
 	unsigned int nbrlayerPA = 1;
 	unsigned int nbrinputPA = dimStateSpace_;
 	unsigned int nbroutputPA = dimActionSpace_;

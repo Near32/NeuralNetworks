@@ -13,7 +13,7 @@
 #include <typeinfo>
 
 //#include "MAT/Mat.h"
-//#include "MAT/Mat2.h"
+#include "MAT/Mat2.h"
 #include "../MTPRODUCT/MTPRODUCT.h"
 
 #include "RAND/rand.h"
@@ -586,7 +586,8 @@ template<typename T>
 T randomWeight(void)	{	return (T) (rand()/T(RAND_MAX) )*1e-5f ;	}
 template<typename T>
 T randomWeightGaussian(void)	{	mutexNRGLOBAL.lock();
-											T ret = (T) nrglobal.dev()*1e-3f ;
+											//T ret = (T) nrglobal.dev()*1e-3f ;
+											T ret = (T) nrglobal.dev()*1e-10f ;
 											mutexNRGLOBAL.unlock();
 												return ret ;	}
 template<typename T>
@@ -1832,9 +1833,20 @@ class NN
 			
 			unsigned int currentLayerNbrNeuron = topo.getNeuronNumOnLayer(nl);
 			NEURONTYPE currentLayerNeuronType = topo.getNeuronTypeOnLayer(nl);
-			LAYERTYPE currentLayerType = topo.getLayerType(nl);
-			convLayerTopoInfo currentCLTI = topo.getCLTI(nl);
-			m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl, currentCLTI ) );
+			//LAYERTYPE currentLayerType = topo.getLayerType(nl);
+			//convLayerTopoInfo currentCLTI = topo.getCLTI(nl);
+			//m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl, currentCLTI ) );
+			
+			//LAYERTYPE currentLayerType = this->topology.getLayerType(nl);
+			
+			LAYERTYPE currentLayerType;
+			if(nl==0)	currentLayerType = LTINPUT;
+			else if(nl==numLayer-1)	currentLayerType = LTOUTPUT;
+			else	currentLayerType = LTNORMAL;
+			
+			//convLayerTopoInfo currentCLTI = this->topology.getCLTI(nl);
+			//m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl, currentCLTI ) );
+			m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl ) );
 			std::cout << "Made a layer of " << currentLayerNbrNeuron << " Neurons and 1 BiasNeuron." << std::endl;
 		}
 		
@@ -2075,7 +2087,8 @@ class NN
 	
 	void backPropDeltaBATCH(const Mat<T>& delta, int batchSize = 100)
 	{
-		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		//Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		Mat<float> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, this->outputs.getLine(), 1)  );
 		Mat<float> errorBackProp(  delta  % ( m_layers[numLayer-1]->functionDerivative(actLast) )  );
 		
 		for(int i=numLayer;i--;)
@@ -2105,7 +2118,8 @@ class NN
 		
 		mutexNN.lock();
 		
-		Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine()-1, 1)  );	//nbrOut x 1
+		//Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine()-1, 1)  );	//nbrOut x 1
+		Mat<T> actLast( extract( m_layers[numLayer-1]->getActivations(), 1,1, outputs.getLine(), 1)  );	//nbrOut x 1
 		Mat<T> WLast( m_connections[numLayer-2]->getWeights() );	//nbrOut x nbrIn+1
 		WLast = extract(WLast, 1,1, WLast.getLine(), WLast.getColumn()-1);	//nbrOut x nbrIn
 		Mat<T> deltaF( m_layers[numLayer-1]->functionDerivative(actLast)  );
@@ -2177,9 +2191,16 @@ class NN
 		{
 			unsigned int currentLayerNbrNeuron = this->topology.getNeuronNumOnLayer(nl);
 			NEURONTYPE currentLayerNeuronType = this->topology.getNeuronTypeOnLayer(nl);
-			LAYERTYPE currentLayerType = this->topology.getLayerType(nl);
-			convLayerTopoInfo currentCLTI = this->topology.getCLTI(nl);
-			m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl, currentCLTI ) );
+			//LAYERTYPE currentLayerType = this->topology.getLayerType(nl);
+			
+			LAYERTYPE currentLayerType;
+			if(nl==0)	currentLayerType = LTINPUT;
+			else if(nl==numLayer-1)	currentLayerType = LTOUTPUT;
+			else	currentLayerType = LTNORMAL;
+			
+			//convLayerTopoInfo currentCLTI = this->topology.getCLTI(nl);
+			//m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl, currentCLTI ) );
+			m_layers.push_back( new Layer2<T>(this, currentLayerType, currentLayerNeuronType, currentLayerNbrNeuron, nl ) );
 			std::cout << "Made a layer of " << currentLayerNbrNeuron << " Neurons and 1 BiasNeuron." << std::endl;
 		}
 		
@@ -2349,7 +2370,8 @@ class NNTrainer : public NN<T>
 		this->deltas.clear();
 		this->deltas.resize(this->numLayer+1);
 		
-		Mat<float> actLast( extract(this->m_layers[this->numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		//Mat<float> actLast( extract(this->m_layers[this->numLayer-1]->getActivations(), 1,1, this->outputs.getLine()-1, 1)  );
+		Mat<float> actLast( extract(this->m_layers[this->numLayer-1]->getActivations(), 1,1, this->outputs.getLine(), 1)  );
 		Mat<float> errorBackProp(  transpose(delta)  % ( this->m_layers[this->numLayer-1]->functionDerivative(actLast) )  );
 		//Mat<float> errorBackProp(  delta  * ( this->m_layers[this->numLayer-1]->functionDerivative(actLast) )  );
 		deltas[this->numLayer] = errorBackProp;
@@ -2377,6 +2399,7 @@ class NNTrainer : public NN<T>
 		
 	}
 	
+	//this momentum specifies how much we trust that trainer weights values compared to the network weights values during the update
 	void operator()(GRADIENTCOMP gradComputationType = GCSGD,const T& momentum=(T)1.0f)
 	{
 		//computation of the gradients from the dWs:
@@ -2434,7 +2457,8 @@ class NNTrainer : public NN<T>
 				case GCSGDMomentum :
 				{
 					//SGD Momentum :
-					float momentumMAJ = 0.9f;
+					float momentumMAJ = 0.5f;
+					//float momentumMAJ = momentum;
 					ConnGrad[i] = momentumMAJ*lastGrad;
 					
 					Mat<float> sgd(dWs[i][0]);
@@ -2485,7 +2509,7 @@ class NNTrainer : public NN<T>
 		for(int i=this->numLayer-1;i--;)
 		{
 			float norm = norme2(ConnGrad[i]);
-			std::cout << " NORM GRAD : " << i << " :: " << norm << std::endl;
+			//std::cout << " NORM GRAD : " << i << " :: " << norm << std::endl;
 			
 			if( !isfinite(norm) || norm > clampingGrad )
 			{
@@ -2493,7 +2517,7 @@ class NNTrainer : public NN<T>
 				clampGradient(ConnGrad[i],clampingGrad);
 				
 				norm = norme2(ConnGrad[i]);
-				std::cout << " REGULARIZED NORM GRAD : " << i << " :: " << norm << std::endl;
+				//std::cout << " REGULARIZED NORM GRAD : " << i << " :: " << norm << std::endl;
 			}
 			
 			this->m_layers[i]->applyGradient( ConnGrad[i] );

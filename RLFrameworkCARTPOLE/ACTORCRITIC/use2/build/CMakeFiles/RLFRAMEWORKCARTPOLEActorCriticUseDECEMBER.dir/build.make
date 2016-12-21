@@ -34,14 +34,11 @@ RM = /usr/bin/cmake -E remove -f
 # Escaping for special characters.
 EQUALS = =
 
-# The program to use to edit the cache.
-CMAKE_EDIT_COMMAND = /usr/bin/ccmake
-
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2
+CMAKE_SOURCE_DIR = /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
+CMAKE_BINARY_DIR = /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/depend.make
@@ -54,17 +51,17 @@ include CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/flags.make
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o: CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/flags.make
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o: ../actorcriticuse.cpp
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles $(CMAKE_PROGRESS_1)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles $(CMAKE_PROGRESS_1)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building CXX object CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o -c /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o -c /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp > CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.i
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp > CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.i
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.s
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp -o CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.s
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o.requires:
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/actorcriticuse.cpp.o.requires
@@ -100,6 +97,6 @@ CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/clean:
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/clean
 
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/depend:
-	cd /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2 /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/depend
 

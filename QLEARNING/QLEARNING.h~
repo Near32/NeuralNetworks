@@ -1310,9 +1310,9 @@ class DDPGA3C
 				std::vector<Mat<float> > tempASTD;
 				
 				#ifdef ENVnorandomINIT
-				this->env->initialize(false);
+				this->env->initialize(false,true);
 				#else
-				this->env->initialize(true);
+				this->env->initialize(true,true);
 				#endif
 				
 				int nbrsteps = 1;
@@ -1374,7 +1374,7 @@ class DDPGA3C
 				}
 				//tempASTDev.set( sqrt( (1.0f/(nbrsteps-1)) * tempASTDev.get(1,1) ), 1,1);
 				Mat<float> tempASTDline( 1,nbraction);
-				for(int l=1;l<=nbraction;i++)	tempASTDline.set( sqrt( (1.0f/(nbrsteps-1)) * tempASTDev.get(l,l) ), 1,l);
+				for(int l=1;l<=nbraction;l++)	tempASTDline.set( sqrt( (1.0f/(nbrsteps-1)) * tempASTDev.get(l,l) ), 1,l);
 				testA_STD.push_back(tempASTDline);
 				
 				

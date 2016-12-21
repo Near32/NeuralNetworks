@@ -46,14 +46,11 @@ RM = /usr/bin/cmake -E remove -f
 # Escaping for special characters.
 EQUALS = =
 
-# The program to use to edit the cache.
-CMAKE_EDIT_COMMAND = /usr/bin/ccmake
-
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2
+CMAKE_SOURCE_DIR = /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
+CMAKE_BINARY_DIR = /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build
 
 #=============================================================================
 # Target rules for target CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir
@@ -62,7 +59,7 @@ CMAKE_BINARY_DIR = /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/us
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/all:
 	$(MAKE) -f CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/build.make CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/depend
 	$(MAKE) -f CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/build.make CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/build
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles  1
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles  1
 	@echo "Built target RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER"
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/all
 
@@ -72,9 +69,9 @@ all: CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 1
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 1
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/build/CMakeFiles 0
 .PHONY : CMakeFiles/RLFRAMEWORKCARTPOLEActorCriticUseDECEMBER.dir/rule
 
 # Convenience name for target.
