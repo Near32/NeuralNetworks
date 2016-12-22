@@ -5,6 +5,8 @@
 #include "../MAT/Mat2.h"
 #include "../RK4/RK4.h"
 #include <python2.7/Python.h>
+#include <mutex>
+#include <thread>
 
 
 template<typename T>
@@ -802,10 +804,14 @@ class OPENAIGYM_Environment : public Environment<float>
 		
 		std::cout << " OPENAIGYM ENVIRONMENT ::::::::::::::::::: INITIALIZED :::::::::::::::::::::::::::" << std::endl;
 		
+		this->threadLoop = new std::thread( &OPENAIGYM_Environment::loop, std::ref(*this) );
+		
+		std::cout << " OPENAIGYM ENVIRONMENT ::::::::::::::::::: LAUNCHED :::::::::::::::::::::::::::" << std::endl;
 	}
 	
 	~OPENAIGYM_Environment()
 	{
+		delete this->threadLoop;
 	}
 	
 	virtual void initialize(bool random = false) override
@@ -1086,6 +1092,8 @@ class OPENAIGYM_Environment : public Environment<float>
 	
 	bool isDone;
 	bool operationhandled;
+	
+	std::thread* threadLoop;
 };
 
 #endif
