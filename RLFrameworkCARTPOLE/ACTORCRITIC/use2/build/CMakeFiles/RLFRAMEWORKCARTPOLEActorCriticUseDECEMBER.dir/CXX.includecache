@@ -6,27 +6,23 @@
 
 #IncludeRegexTransform: 
 
-/home/kevin/Development/MTPRODUCT/MTPRODUCT.h
-../ThreadPool/ThreadPool.h
-/home/kevin/Development/ThreadPool/ThreadPool.h
-
-/home/kevin/Development/NN/ENVIRONMENT/Environment.h
+/home/kevin/Development/git/RL/NeuralNetworks/ENVIRONMENT/Environment.h
 ../MAT/Mat2.h
-/home/kevin/Development/NN/MAT/Mat2.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 ../RK4/RK4.h
-/home/kevin/Development/NN/RK4/RK4.h
+/home/kevin/Development/git/RL/NeuralNetworks/RK4/RK4.h
 python2.7/Python.h
 -
 
-/home/kevin/Development/NN/FA/FA.h
+/home/kevin/Development/git/RL/NeuralNetworks/FA/FA.h
 ../MAT/Mat2.h
-/home/kevin/Development/NN/MAT/Mat2.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 ../NN.h
-/home/kevin/Development/NN/NN.h
+/home/kevin/Development/git/RL/NeuralNetworks/NN.h
 mutex
 -
 
-/home/kevin/Development/NN/MAT/Mat2.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 iostream
 -
 limits
@@ -44,7 +40,7 @@ vector
 opencv2/opencv.hpp
 -
 
-/home/kevin/Development/NN/NN.h
+/home/kevin/Development/git/RL/NeuralNetworks/NN.h
 iostream
 -
 string
@@ -64,53 +60,51 @@ exception
 typeinfo
 -
 MAT/Mat2.h
-/home/kevin/Development/NN/MAT/Mat2.h
-../MTPRODUCT/MTPRODUCT.h
-/home/kevin/Development/MTPRODUCT/MTPRODUCT.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 RAND/rand.h
-/home/kevin/Development/NN/RAND/rand.h
+/home/kevin/Development/git/RL/NeuralNetworks/RAND/rand.h
 RunningStats/RunningStats.h
-/home/kevin/Development/NN/RunningStats/RunningStats.h
+/home/kevin/Development/git/RL/NeuralNetworks/RunningStats/RunningStats.h
 
-/home/kevin/Development/NN/PA/PA.h
+/home/kevin/Development/git/RL/NeuralNetworks/PA/PA.h
 ../MAT/Mat2.h
-/home/kevin/Development/NN/MAT/Mat2.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 ../NN.h
-/home/kevin/Development/NN/NN.h
+/home/kevin/Development/git/RL/NeuralNetworks/NN.h
 
-/home/kevin/Development/NN/QLEARNING/QLEARNING.h
+/home/kevin/Development/git/RL/NeuralNetworks/QLEARNING/QLEARNING.h
 ../PA/PA.h
-/home/kevin/Development/NN/PA/PA.h
+/home/kevin/Development/git/RL/NeuralNetworks/PA/PA.h
 ../FA/FA.h
-/home/kevin/Development/NN/FA/FA.h
+/home/kevin/Development/git/RL/NeuralNetworks/FA/FA.h
 ../ENVIRONMENT/Environment.h
-/home/kevin/Development/NN/ENVIRONMENT/Environment.h
+/home/kevin/Development/git/RL/NeuralNetworks/ENVIRONMENT/Environment.h
 ../RunningStats/RunningStats.h
-/home/kevin/Development/NN/RunningStats/RunningStats.h
+/home/kevin/Development/git/RL/NeuralNetworks/RunningStats/RunningStats.h
 mutex
 -
 thread
 -
 
-/home/kevin/Development/NN/RAND/rand.h
+/home/kevin/Development/git/RL/NeuralNetworks/RAND/rand.h
 iostream
 -
 cmath
 -
 
-/home/kevin/Development/NN/RK4/RK4.h
+/home/kevin/Development/git/RL/NeuralNetworks/RK4/RK4.h
 ../MAT/Mat2.h
-/home/kevin/Development/NN/MAT/Mat2.h
+/home/kevin/Development/git/RL/NeuralNetworks/MAT/Mat2.h
 vector
 -
 ../RunningStats/RunningStats.h
-/home/kevin/Development/NN/RunningStats/RunningStats.h
+/home/kevin/Development/git/RL/NeuralNetworks/RunningStats/RunningStats.h
 
-/home/kevin/Development/NN/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp
+/home/kevin/Development/git/RL/NeuralNetworks/RLFrameworkCARTPOLE/ACTORCRITIC/use2/actorcriticuse.cpp
 ../../../QLEARNING/QLEARNING.h
-/home/kevin/Development/NN/QLEARNING/QLEARNING.h
+/home/kevin/Development/git/RL/NeuralNetworks/QLEARNING/QLEARNING.h
 
-/home/kevin/Development/NN/RunningStats/RunningStats.h
+/home/kevin/Development/git/RL/NeuralNetworks/RunningStats/RunningStats.h
 iostream
 -
 fstream
@@ -119,16 +113,4 @@ map
 -
 string
 -
-
-/home/kevin/Development/ThreadPool/ThreadPool.h
-iostream
--
-thread
--
-vector
--
-mutex
--
-../MAT/Mat.h
-/home/kevin/Development/MAT/Mat.h
 

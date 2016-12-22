@@ -31,11 +31,12 @@ int main(int argc, char* argv[])
 	std::string filepathRSFA(filepath+".FA.txt");
 	std::string filepathRSPA(filepath+".PA.txt");
 	
-	unsigned int nbrthread = 4;
+	//unsigned int nbrthread = 4;
+	unsigned int nbrthread = 32;
 	unsigned int nbrepi = 50000;
-	float gamma_ = 0.99f;
+	float gamma_ = 0.8f;
 	
-	float EOE = 10.0f;	//in seconds...
+	float EOE = 5.0f;	//in seconds...
 	SimulatorRKCARTPOLE env_(EOE);
 	env_.idxAssociatedThread = -1;
 	env_.write = true;
@@ -69,7 +70,8 @@ int main(int argc, char* argv[])
 	/**/
 	#ifndef USESAVE
 	Topology topoFA;
-	unsigned int nbrneuronsFA = 64;
+	//unsigned int nbrneuronsFA = 64;
+	unsigned int nbrneuronsFA = 256;
 	unsigned int nbrlayerFA = 1;
 	#ifndef Vvalues
 	unsigned int nbrinputFA = dimActionSpace_+dimStateSpace_;
@@ -104,7 +106,8 @@ int main(int argc, char* argv[])
 	 
 	#ifndef USESAVE
 	Topology topoPA;
-	unsigned int nbrneuronsPA = 32;
+	//unsigned int nbrneuronsPA = 32;
+	unsigned int nbrneuronsPA = 128;
 	unsigned int nbrlayerPA = 1;
 	unsigned int nbrinputPA = dimStateSpace_;
 	unsigned int nbroutputPA = dimActionSpace_;
@@ -129,7 +132,7 @@ int main(int argc, char* argv[])
 	//QLEARNINGXPReplayActorCritic instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_);
 	//instance.run(nbrepi);
 	
-	float momentumUpdate = 1e-4f;
+	float momentumUpdate = 1e-5f;
 	int freqUpdate = 1;
 	DDPGA3C instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_, momentumUpdate, freqUpdate);
 	instance.run(nbrepi,nbrthread);

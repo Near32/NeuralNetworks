@@ -193,14 +193,14 @@ class SimulatorRK : public Environment<float>
 		
 		for(int i=1;i<=this->nbrRobots;i++)
 		{
-			float rhoi = this->SIMstate.get(4,i);
+			float rhoi = this->SIMstate.get(4*i,1);
 		    int ni = i+1;
 		    if(ni > nbrRobots)
 		    {
 		        ni = 1;
 			}
 		    
-		    float rhoni = this->SIMstate.get(4,ni);
+		    float rhoni = this->SIMstate.get(4*ni,1);
 		    float phiini = rhoni-rhoi;
 		    
 		    while( phiini > PI)
@@ -464,7 +464,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
        this->rk = new RK4( CARTPOLEUPDATE, this);
        
        this->idxAssociatedThread = 0;
-       this->write = false;
+       this->write = true;
 	}
 	
 	~SimulatorRKCARTPOLE()

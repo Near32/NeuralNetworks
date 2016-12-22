@@ -466,7 +466,7 @@ class SimulatorRKCARTPOLE : public Environment<float>
        this->rk = new RK4( CARTPOLEUPDATE, this);
        
        this->idxAssociatedThread = 0;
-       this->write = false;
+       this->write = true;
 	}
 	
 	~SimulatorRKCARTPOLE()
