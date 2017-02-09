@@ -58,9 +58,11 @@ int main(int argc, char* argv[])
 	/*
 	4x50
 	*/ 
-	float lrPA_ = 1e-5f;
+	//float lrPA_ = 1e-5f;
+	float lrPA_ = 1e-4f;
 	//we do not want to reach some local minima before finishing learning the Qvalues...
-	float lrFA_ = 1e-5f;
+	//float lrFA_ = 1e-5f;
+	float lrFA_ = 1e-4f;
 	/**/
 	float eps_ = 0.01f;
 	int dimActionSpace_ = 1;
@@ -132,7 +134,7 @@ int main(int argc, char* argv[])
 	//QLEARNINGXPReplayActorCritic instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_);
 	//instance.run(nbrepi);
 	
-	float momentumUpdate = 1e-5f;
+	float momentumUpdate = 1e-2f;
 	int freqUpdate = 1;
 	DDPGA3C instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_, momentumUpdate, freqUpdate);
 	instance.run(nbrepi,nbrthread);

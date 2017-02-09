@@ -586,8 +586,8 @@ template<typename T>
 T randomWeight(void)	{	return (T) (rand()/T(RAND_MAX) )*1e-5f ;	}
 template<typename T>
 T randomWeightGaussian(void)	{	mutexNRGLOBAL.lock();
-											//T ret = (T) nrglobal.dev()*1e-3f ;
-											T ret = (T) nrglobal.dev()*1e-10f ;
+											T ret = (T) nrglobal.dev()*1e-1f ;
+											//T ret = (T) nrglobal.dev()*1e-10f ;
 											mutexNRGLOBAL.unlock();
 												return ret ;	}
 template<typename T>
@@ -2128,6 +2128,12 @@ class NN
 		
 		Mat<T> grad( gradF*WLast);
 		
+		/*
+		//DEBUG:
+		float normegrad = norme2(grad);
+		std::cout << "dqda : INIT :: grad : " << normegrad << std::endl;
+		*/
+		
 		for(int i=numLayer-2;i>0;i--)
 		{
 			actLast = extract( m_layers[i]->getActivations(), 1,1, m_layers[i]->getNbrNeurons(), 1) ;	//nbrOut x 1
@@ -2137,7 +2143,29 @@ class NN
 			gradF = Mat<T>(0.0f, deltaF.getLine(), deltaF.getLine());
 			for(int i=1;i<=deltaF.getLine();i++)	gradF.set( deltaF.get(i,1), i,i);
 		
-			grad = grad*(gradF*WLast);
+			Mat<float> mult(gradF*WLast);
+			
+			/*
+			//DEBUG :
+			grad.afficher();
+			mult.afficher();
+			*/
+			
+			grad = grad*mult;
+			
+			
+			/*
+			//DEBUG :
+			//float normemult = norme2(mult);
+			//std::cout << "dqda : i=" << i << " :: gradf*wlast : " << normemult << std::endl;
+			//float normewlast = norme2(WLast);
+			//std::cout << "dqda : i=" << i << " :: wlast : " << normewlast << std::endl;
+			//float normegradf = norme2(gradF);
+			//std::cout << "dqda : i=" << i << " :: gradf : " << normegradf << std::endl;
+			float normegrad = norme2(grad);
+			std::cout << "dqda : i=" << i << " :: grad : " << normegrad << std::endl;
+			*/
+			//TODO : debug the vanishing gradient issue...
 		}
 		
 		mutexNN.unlock();
@@ -2250,6 +2278,11 @@ class NN
 			{
 				Mat<T> newW( momentum * onetconn[i]->getWeights() );
 				newW += (T)(1.0f-momentum) * this->m_connections[i]->getWeights();
+				
+				/*
+				float diff = norme2(newW-this->m_connections[i]->getWeights());
+				std::cout << " UPDATE TOWARD : diff norme 2 = " << diff << std::endl;
+				*/
 				
 				this->m_connections[i]->setWeights(newW);
 			}

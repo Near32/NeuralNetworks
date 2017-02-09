@@ -134,7 +134,8 @@ int main(int argc, char* argv[])
 	//QLEARNINGXPReplayActorCritic instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_);
 	//instance.run(nbrepi);
 	
-	float momentumUpdate = 1e-5f;
+	//float momentumUpdate = 1e-5f;
+	float momentumUpdate = 1e-2f;
 	int freqUpdate = 1;
 	DDPGA3C instance(nbrepi, gamma_, (Environment<float>*)(&env_), (FA<float>*)&fa_, (PA<float>*)&pa_, momentumUpdate, freqUpdate);
 	instance.run(nbrepi,nbrthread);
