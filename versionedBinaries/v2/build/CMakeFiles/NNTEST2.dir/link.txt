@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11 -g    CMakeFiles/NNTEST2.dir/home/kevin/Development/NN/testNN2.cpp.o  -o ../bin/NNTEST2 -rdynamic 

@@ -1,0 +1,77 @@
+#ifndef RK4_H
+#define RK4_H
+
+
+#include "../MAT/Mat.h"
+
+classdef RK4 < handle
+    properties 
+        func;
+        objUsed;
+        
+        stateVector;
+        
+        timeStep;
+        currentTime;
+        endTime;
+        
+        an;
+        bn;
+        cn;
+        dn;
+        
+        recording;
+        plotter;
+    end
+    
+    public :
+    
+    RK4(func_, objUsed_)
+    {
+        obj.currentTime = 0;
+        obj.timeStep = 1e-2;
+        obj.endTime = 1;
+        
+        obj.func = func_;
+        obj.objUsed = objUsed_;
+        
+        
+        obj.plotter = Plotter();
+    }
+    
+    Mat<T> solve(obj,initState,timeStep_,endTime_)
+    {
+       obj.timeStep = timeStep_;
+       obj.endTime = endTime_;
+       obj.stateVector = initState;
+       obj.plotter.add(obj.stateVector);
+       obj.recording = obj.stateVector;
+       
+       while obj.currentTime < obj.endTime
+       {
+           obj.an = obj.func(obj.stateVector,obj.objUsed);
+           obj.bn = obj.func(obj.stateVector+obj.timeStep/2*obj.an,obj.objUsed);
+           obj.cn = obj.func(obj.stateVector+obj.timeStep/2*obj.bn,obj.objUsed);
+           obj.dn = obj.func(obj.stateVector+obj.timeStep*obj.cn,obj.objUsed);
+           
+           obj.stateVector = obj.stateVector + (obj.timeStep/6)*(obj.an+2*obj.bn+2*obj.cn+obj.dn);
+           
+           obj.recording = [obj.recording, obj.stateVector];
+           obj.plotter.add(obj.stateVector);
+           
+           obj.currentTime = obj.currentTime + obj.timeStep;
+       }
+       
+       finalStateVector = obj.stateVector;
+       
+    }
+    
+    function states = getRecording(obj)
+        states = obj.recording;
+    }
+    
+};
+
+#endif
+
+

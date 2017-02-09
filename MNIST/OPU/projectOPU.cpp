@@ -1,0 +1,140 @@
+#include "projectOPU.h"
+
+float computeDistance(const cv::Vec3f& c1, const cv::Vec3f& c2)
+{
+	float r = 0.0f;
+	for(int i=0;i<2;i++)
+	{
+		r+= pow(c1[i]-c2[i], 2);
+	}
+	
+	return sqrt(r);
+}
+
+//Error <==> the returned value is odd.
+// all okay if the returned value is even <===> the returned value is equal to 2*finalassoc.getLine();
+//computes the association : idx1 idx2 and the coordinates x y of the center of gravity...
+int computeAssociationsAndCOG(const cv::Mat& im, Mat<float>& finalAssoc)
+{
+	cv::Mat src;
+	//src is a picture on which we have reduiced the area in which to look for :
+	/// Reduce the noise so we avoid false circle detection
+	GaussianBlur( im, src, cv::Size(9, 9), 2, 2 );
+	
+	vector<cv::Vec3f> circles;
+
+	/// Apply the Hough Transform to find the circles
+	int min_dist_centers = src.rows/80;
+	HoughCircles( src, circles, CV_HOUGH_GRADIENT, 1, min_dist_centers, 200, 100, 0, 0 );
+	
+	int nbrFeatures = circles.size();
+	if( nbrFeatures%2 != 0)
+	{
+		//then there is a problem : let us define what to do...
+		return nbrFeatures;
+	}
+	
+	Mat<float> dist(nbrFeatures,nbrFeatures);
+	for(int i=1;i<=nbrFeatures;i++)
+	{
+		//let us compute the distances for half of the matrix, since it is symmetric :
+		for(int j=1;j<=i;j++)
+		{
+			float distanceij = computeDistance(circles[i],circles[j]);
+			dist.set( distanceij, i,j);
+			dist.set( distanceij, j,i);
+		}
+	}
+	
+	//let us find the minimal value for each column :
+	Mat<float> association(0.0f,nbrFeatures,1);
+	for(int i=1;i<=nbrFeatures;i++)
+	{
+		dist.set( 100, i,i);
+		int idxMin = idmin( extract(dist, i,1,i,nbrFeatures) ).get(2,1);
+		association.set( idxMin, i,1);
+	}
+	
+	//associations are ready.
+	finalAssoc = Mat<float>(nbrFeatures/2,2);
+	int i = 1;
+	while( i<=nbrFeatures/2)
+	{
+		int j=1;
+		while( association.get(j,1) != i)
+		{
+			j++;
+			if(j>nbrFeatures)
+			{
+				throw;
+			}
+		}
+		
+		finalAssoc.set( i, i,1);
+		finalAssoc.set( j, i,2);
+		
+		i++;
+	}
+	
+	Mat<float> CoG(nbrFeatures/2,2);
+	for(int i=1;i<=nbrFeatures/2;i++)
+	{
+		int idxf1 =finalAssoc.get(i,1);
+		int idxf2 =finalAssoc.get(i,2);
+		float x = (circles[idxf1][0]+circles[idxf2][0]) / 2.0f;
+		float y = (circles[idxf1][1]+circles[idxf2][1]) / 2.0f;
+		
+		CoG.set( x, i,1);
+		CoG.set( x, i,2);
+	}
+	
+	finalAssoc = operatorL(finalAssoc, CoG);
+	
+	return nbrFeatures;
+	
+}
+
+Mat<float> rotation(float theta)
+{
+	Mat<float> r(2,2);
+	r.set( cos(theta), 1,1);
+	r.set( cos(theta),2,2);
+	r.set( -sin(theta), 1,2);
+	r.set( sin(theta),2,1);
+	
+	return r;
+	
+}
+
+Mat<float> rotate(const Mat<float>& im, float theta)
+{
+	Mat<float> rot( rotation(theta) );
+	
+	int h = im.getLine();
+	int w = im.getColumn();
+	float ox = ((float)w)/2.0f;
+	float oy = ((float)h)/2.0f;
+	
+	Mat<float> rim(0.0f, h,w);
+	
+	for(int i=1;i<=h;i++)
+	{
+		for(int j=1;j<=w;j++)
+		{
+			float x = j-ox;
+			float y = i-oy;
+			Mat<float> coord(2,1);
+			coord.set( x, 1,1);
+			coord.set( y, 2,1);
+			
+			//new coordinate :
+			coord = rot*coord;
+			
+			rim.set( im.get(i,j), coord.get(2,1), coord.get(1,1) );
+		}
+	}
+	
+	return rim;
+}
+
+
